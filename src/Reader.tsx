@@ -276,6 +276,26 @@ function BookMode({ content }: { content: ReaderContent }) {
     return page.map((index) => content.body[index]);
   }, [content.body, currentPage, pages]);
 
+  const totalPages = pages.length;
+  const canGoPrevious = currentPage > 0;
+  const canGoNext = currentPage < totalPages - 1;
+
+  const goPrevious = () => {
+    if (!canGoPrevious) {
+      return;
+    }
+
+    setCurrentPage((page) => Math.max(0, page - 1));
+  };
+
+  const goNext = () => {
+    if (!canGoNext) {
+      return;
+    }
+
+    setCurrentPage((page) => Math.min(totalPages - 1, page + 1));
+  };
+
   return (
     <section className="calamus calamus--book-frame" aria-label="Book reading mode">
       <div className="calamus__book-page">
@@ -288,10 +308,31 @@ function BookMode({ content }: { content: ReaderContent }) {
           ref={bodyRef}
           className="calamus__body calamus__book-body"
           data-current-page={currentPage + 1}
-          data-total-pages={pages.length}
+          data-total-pages={totalPages}
         >
           {renderParagraphs(currentPageParagraphs)}
         </article>
+        <div className="calamus__book-nav" aria-label="Book page navigation">
+          <button
+            type="button"
+            className="calamus__book-nav-button"
+            onClick={goPrevious}
+            disabled={!canGoPrevious}
+            aria-label="Previous page"
+          >
+            ←
+          </button>
+          <span className="calamus__book-nav-status">{`Pagina ${currentPage + 1} de ${totalPages}`}</span>
+          <button
+            type="button"
+            className="calamus__book-nav-button"
+            onClick={goNext}
+            disabled={!canGoNext}
+            aria-label="Next page"
+          >
+            →
+          </button>
+        </div>
         <div ref={measureRef} className="calamus__book-measure" aria-hidden="true" />
       </div>
     </section>
