@@ -12,13 +12,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    }
+    },
+    "./index.css": "./dist/index.css",
+    "./styles.css": "./dist/index.css"
   },
   "files": [
     "dist"
   ],
   "scripts": {
     "dev": "vite",
+    "prepare": "npm run build",
     "build": "tsup && tsc -p tsconfig.build.json --noEmit",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"
@@ -26,6 +29,14 @@
   "peerDependencies": {
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/react": "^18.3.23",
