@@ -61,6 +61,13 @@
   color: var(--calamus-muted);
 }
 
+.calamus__reading-time {
+  margin: 0.45rem 0 0;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.8rem;
+  color: var(--calamus-muted);
+}
+
 .calamus__body {
   max-width: 68ch;
 }
