@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { ReaderContent, ReaderProps, ReaderTheme } from "./types";
 import { EditorialReader } from "./modes/EditorialReader";
 import { HypertextReader } from "./modes/HypertextReader";
@@ -53,6 +53,44 @@ function getReadingTimeText(content: ReaderContent, readingTimeLabel: string) {
   const words = getWordCount(content.body);
   const minutes = Math.max(1, Math.ceil(words / 250));
   return `${minutes} ${readingTimeLabel}`;
+}
+
+function paginateParagraphs(paragraphHeights: number[], availableHeight: number): number[][] {
+  if (paragraphHeights.length === 0) {
+    return [[]];
+  }
+
+  if (availableHeight <= 0) {
+    return [paragraphHeights.map((_, index) => index)];
+  }
+
+  const pages: number[][] = [];
+  let currentPage: number[] = [];
+  let currentHeight = 0;
+
+  paragraphHeights.forEach((height, index) => {
+    if (currentPage.length === 0) {
+      currentPage = [index];
+      currentHeight = height;
+      return;
+    }
+
+    if (currentHeight + height <= availableHeight) {
+      currentPage.push(index);
+      currentHeight += height;
+      return;
+    }
+
+    pages.push(currentPage);
+    currentPage = [index];
+    currentHeight = height;
+  });
+
+  if (currentPage.length > 0) {
+    pages.push(currentPage);
+  }
+
+  return pages;
 }
 
 function TerminalMode({ content }: { content: ReaderContent }) {
@@ -178,6 +216,66 @@ function ScrollMode({
 }
 
 function BookMode({ content }: { content: ReaderContent }) {
+  const bodyRef = useRef<HTMLElement | null>(null);
+  const measureRef = useRef<HTMLDivElement | null>(null);
+  const [pages, setPages] = useState<number[][]>([content.body.map((_, index) => index)]);
+  const [currentPage, setCurrentPage] = useState(0);
+
+  useEffect(() => {
+    const bodyElement = bodyRef.current;
+    const measureElement = measureRef.current;
+    if (!bodyElement || !measureElement) {
+      return;
+    }
+
+    const recalculatePagination = () => {
+      const width = bodyElement.clientWidth;
+      const availableHeight = bodyElement.clientHeight;
+
+      if (width <= 0 || availableHeight <= 0) {
+        return;
+      }
+
+      measureElement.style.width = `${width}px`;
+      measureElement.innerHTML = "";
+
+      const paragraphHeights = content.body.map((paragraph) => {
+        const node = document.createElement("p");
+        node.className = "calamus__paragraph";
+        node.textContent = paragraph;
+        measureElement.appendChild(node);
+
+        const computed = window.getComputedStyle(node);
+        const marginBottom = Number.parseFloat(computed.marginBottom) || 0;
+        return node.getBoundingClientRect().height + marginBottom;
+      });
+
+      const nextPages = paginateParagraphs(paragraphHeights, availableHeight);
+      setPages(nextPages);
+    };
+
+    recalculatePagination();
+
+    const observer = new ResizeObserver(() => {
+      recalculatePagination();
+    });
+
+    observer.observe(bodyElement);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [content.body, content.subtitle, content.title]);
+
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, Math.max(0, pages.length - 1)));
+  }, [pages]);
+
+  const currentPageParagraphs = useMemo(() => {
+    const page = pages[currentPage] ?? [];
+    return page.map((index) => content.body[index]);
+  }, [content.body, currentPage, pages]);
+
   return (
     <section className="calamus calamus--book-frame" aria-label="Book reading mode">
       <div className="calamus__book-page">
@@ -186,7 +284,15 @@ function BookMode({ content }: { content: ReaderContent }) {
           <h1 className="calamus__title">{content.title}</h1>
           {content.subtitle ? <p className="calamus__subtitle">{content.subtitle}</p> : null}
         </header>
-        <article className="calamus__body">{renderParagraphs(content.body)}</article>
+        <article
+          ref={bodyRef}
+          className="calamus__body calamus__book-body"
+          data-current-page={currentPage + 1}
+          data-total-pages={pages.length}
+        >
+          {renderParagraphs(currentPageParagraphs)}
+        </article>
+        <div ref={measureRef} className="calamus__book-measure" aria-hidden="true" />
       </div>
     </section>
   );
