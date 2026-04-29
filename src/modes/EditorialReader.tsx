@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, TouchEvent } from "react";
 import type { ReaderContent } from "../types";
 
 type EditorialReaderProps = {
@@ -62,6 +62,8 @@ export function EditorialReader({ content, readingTimeText }: EditorialReaderPro
   const [currentSheet, setCurrentSheet] = useState(0);
   const [columnCount, setColumnCount] = useState(1);
   const [navDirection, setNavDirection] = useState<"forward" | "backward">("forward");
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const touchCurrentRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const bodyElement = bodyRef.current;
@@ -172,12 +174,53 @@ export function EditorialReader({ content, readingTimeText }: EditorialReaderPro
     }
   };
 
+  const handleTouchStart = (event: TouchEvent<HTMLElement>) => {
+    const touch = event.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchMove = (event: TouchEvent<HTMLElement>) => {
+    const touch = event.touches[0];
+    touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = () => {
+    const start = touchStartRef.current;
+    const current = touchCurrentRef.current;
+    touchStartRef.current = null;
+    touchCurrentRef.current = null;
+
+    if (!start || !current) {
+      return;
+    }
+
+    const deltaX = current.x - start.x;
+    const deltaY = current.y - start.y;
+    const horizontalDistance = Math.abs(deltaX);
+    const verticalDistance = Math.abs(deltaY);
+
+    if (horizontalDistance < 50 || horizontalDistance <= verticalDistance) {
+      return;
+    }
+
+    if (deltaX < 0) {
+      goNext();
+      return;
+    }
+
+    goPrevious();
+  };
+
   return (
     <section
       className="calamus calamus--editorial"
       aria-label="Editorial reading mode"
       tabIndex={0}
       onKeyDown={handleEditorialKeyDown}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       <header className="calamus__head">
         <p className="calamus__mode-label">{sourceName}</p>
