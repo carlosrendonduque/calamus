@@ -1,14 +1,7 @@
-import type { CSSProperties } from "react";
-import type { ReaderContent, ReaderMode, ReaderTheme } from "./types";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import type { ReaderContent, ReaderProps, ReaderTheme } from "./types";
 import { EditorialReader } from "./modes/EditorialReader";
-
-type ReaderProps = {
-  content: ReaderContent;
-  mode?: ReaderMode;
-  theme?: ReaderTheme;
-  className?: string;
-  style?: CSSProperties;
-};
+import { HypertextReader } from "./modes/HypertextReader";
 
 const THEME_TO_VAR: Record<keyof ReaderTheme, string> = {
   background: "--calamus-bg",
@@ -63,8 +56,50 @@ function TerminalMode({ content }: { content: ReaderContent }) {
 }
 
 function ScrollMode({ content }: { content: ReaderContent }) {
+  const containerRef = useRef<HTMLElement | null>(null);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updateProgress = () => {
+      const maxScrollable = element.scrollHeight - element.clientHeight;
+
+      if (maxScrollable <= 0) {
+        setProgress(0);
+        return;
+      }
+
+      setProgress(Math.min(1, Math.max(0, element.scrollTop / maxScrollable)));
+    };
+
+    updateProgress();
+    element.addEventListener("scroll", updateProgress, { passive: true });
+
+    const observer = new ResizeObserver(() => {
+      updateProgress();
+    });
+
+    observer.observe(element);
+
+    return () => {
+      element.removeEventListener("scroll", updateProgress);
+      observer.disconnect();
+    };
+  }, [content.body, content.subtitle, content.title]);
+
   return (
-    <article className="calamus calamus--scroll" aria-label="Scroll reading mode">
+    <article
+      ref={containerRef}
+      className="calamus calamus--scroll"
+      aria-label="Scroll reading mode"
+    >
+      <div className="calamus__scroll-progress-track" aria-hidden="true">
+        <div className="calamus__scroll-progress-fill" style={{ width: `${progress * 100}%` }} />
+      </div>
       <header className="calamus__head">
         <p className="calamus__mode-label">reader --scroll</p>
         <h1 className="calamus__title">{content.title}</h1>
@@ -95,7 +130,8 @@ export function Reader({
   mode = "scroll",
   theme,
   className,
-  style
+  style,
+  children
 }: ReaderProps) {
   const mergedStyle = {
     ...themeToCssVars(theme),
@@ -110,8 +146,7 @@ export function Reader({
       {mode === "scroll" ? <ScrollMode content={content} /> : null}
       {mode === "book" ? <BookMode content={content} /> : null}
       {mode === "editorial" ? <EditorialReader content={content} /> : null}
+      {mode === "hypertext" ? <HypertextReader content={content}>{children}</HypertextReader> : null}
     </div>
   );
 }
-
-export type { ReaderProps };
