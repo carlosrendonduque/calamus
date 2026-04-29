@@ -170,6 +170,7 @@
 }
 
 .calamus--editorial {
+  position: relative;
   padding: 1.6rem;
 }
 
@@ -185,19 +186,34 @@
 .calamus__editorial-article {
   margin: 0 auto;
   max-width: 70ch;
-  column-count: 1;
+  display: grid;
+  grid-template-columns: 1fr;
   column-gap: var(--calamus-column-gap);
+  max-height: min(78vh, 860px);
+  overflow: auto;
 }
 
 @media (min-width: 768px) {
   .calamus__editorial-article {
-    column-count: 2;
+    grid-template-columns: 1fr 1fr;
   }
+}
+
+.calamus__editorial-column {
+  min-width: 0;
 }
 
 .calamus--editorial .calamus__paragraph {
   break-inside: avoid;
   margin-bottom: 1.15rem;
+}
+
+.calamus__editorial-measure {
+  position: absolute;
+  left: -99999px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .calamus--hypertext {
