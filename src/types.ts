@@ -32,4 +32,5 @@ export type ReaderProps = {
   className?: string;
   style?: CSSProperties;
   children?: ReactNode;
+  readingTimeLabel?: string;
 };
