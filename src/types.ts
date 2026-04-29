@@ -4,7 +4,7 @@ export type ReaderContent = {
   body: string[];
 };
 
-export type ReaderMode = "scroll" | "book" | "terminal";
+export type ReaderMode = "scroll" | "book" | "terminal" | "editorial";
 
 export type ReaderTheme = Partial<{
   background: string;
