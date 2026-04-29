@@ -84,6 +84,11 @@
   max-height: min(78vh, 860px);
 }
 
+.calamus--scroll:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--calamus-accent), #fff 8%);
+  outline-offset: 2px;
+}
+
 .calamus__scroll-progress-track {
   position: sticky;
   top: 0;
@@ -111,6 +116,11 @@
   color: var(--calamus-terminal-fg);
   border-color: var(--calamus-terminal-border);
   font-family: var(--calamus-mono-font);
+}
+
+.calamus--terminal:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--calamus-terminal-muted), #fff 8%);
+  outline-offset: 2px;
 }
 
 .calamus--terminal .calamus__title {
