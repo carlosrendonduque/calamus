@@ -16,14 +16,27 @@ const SAMPLE: ReaderContent = {
   ]
 };
 
-const MODES: ReaderMode[] = ["scroll", "book", "terminal", "editorial"];
+const MODES: ReaderMode[] = ["scroll", "book", "terminal", "editorial", "hypertext"];
 
 const labels: Record<ReaderMode, string> = {
   scroll: "Scroll",
   book: "Book",
   terminal: "Terminal",
-  editorial: "Editorial"
+  editorial: "Editorial",
+  hypertext: "Hypertext"
 };
+
+function RotatedQuote({ children }: { children: string }) {
+  return (
+    <blockquote className="playground__rotated-quote">
+      <p>{children}</p>
+    </blockquote>
+  );
+}
+
+function BlinkingNote({ children }: { children: string }) {
+  return <div className="playground__blinking-note">{children}</div>;
+}
 
 export function App() {
   const [mode, setMode] = useState<ReaderMode>("scroll");
@@ -32,7 +45,7 @@ export function App() {
     <main className="playground">
       <header className="playground__header">
         <h1>calamus playground</h1>
-        <p>Mismo contenido, cuatro modos de lectura.</p>
+        <p>Mismo contenido, cinco modos de lectura.</p>
       </header>
 
       <nav className="playground__modes" aria-label="Reader mode">
@@ -49,7 +62,27 @@ export function App() {
         ))}
       </nav>
 
-      <Reader mode={mode} content={SAMPLE} />
+      <Reader mode={mode} content={SAMPLE}>
+        {mode === "hypertext" ? (
+          <div className="playground__hypertext-demo">
+            <p>
+              El pasillo también puede ser un tablero. En vez de avanzar por una sola línea, cada
+              bloque abre una forma distinta de atención.
+            </p>
+            <RotatedQuote>
+              "Toda lectura no lineal es una coreografía: el ojo decide su propio itinerario."
+            </RotatedQuote>
+            <p>
+              El texto convive con piezas activas sin perder su voz. Lo importante no es simular
+              un libro, sino diseñar una experiencia legible.
+            </p>
+            <BlinkingNote>signal: branch opened at node /pasillo/nota-3</BlinkingNote>
+            <p>
+              Cuando termina esta sección, no hay cierre forzado: solo un nuevo punto de entrada.
+            </p>
+          </div>
+        ) : null}
+      </Reader>
     </main>
   );
 }

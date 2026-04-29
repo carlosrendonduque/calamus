@@ -72,6 +72,48 @@ body {
   background: #dce8e2;
 }
 
+.playground__hypertext-demo {
+  display: grid;
+  gap: 1rem;
+}
+
+.playground__hypertext-demo p {
+  margin: 0;
+  line-height: 1.75;
+}
+
+.playground__rotated-quote {
+  margin: 0.2rem 0;
+  padding: 0.85rem 1rem;
+  border-left: 3px solid var(--calamus-accent);
+  background: color-mix(in srgb, var(--calamus-accent), #fff 90%);
+  transform: rotate(-2deg);
+}
+
+.playground__rotated-quote p {
+  margin: 0;
+  font-style: italic;
+}
+
+.playground__blinking-note {
+  font-family: var(--calamus-mono-font);
+  color: var(--calamus-accent);
+  font-size: 0.9rem;
+  letter-spacing: 0.03em;
+  animation: playground-note-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes playground-note-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
 .playground .calamus-root {
   --calamus-bg: #fdfcf8;
   --calamus-panel: #f3efe6;

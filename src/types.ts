@@ -1,10 +1,12 @@
+import type { CSSProperties, ReactNode } from "react";
+
 export type ReaderContent = {
   title: string;
   subtitle?: string;
   body: string[];
 };
 
-export type ReaderMode = "scroll" | "book" | "terminal" | "editorial";
+export type ReaderMode = "scroll" | "book" | "terminal" | "editorial" | "hypertext";
 
 export type ReaderTheme = Partial<{
   background: string;
@@ -22,3 +24,12 @@ export type ReaderTheme = Partial<{
   serifFontFamily: string;
   monoFontFamily: string;
 }>;
+
+export type ReaderProps = {
+  content: ReaderContent;
+  mode?: ReaderMode;
+  theme?: ReaderTheme;
+  className?: string;
+  style?: CSSProperties;
+  children?: ReactNode;
+};
