@@ -223,6 +223,11 @@
   background: color-mix(in srgb, var(--calamus-bg), #000 4%);
 }
 
+.calamus--book-frame:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--calamus-accent), #fff 8%);
+  outline-offset: 2px;
+}
+
 .calamus__book-page {
   position: relative;
   border: 1px solid var(--calamus-border);

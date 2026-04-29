@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import type { KeyboardEvent } from "react";
 import type { ReaderContent, ReaderProps, ReaderTheme } from "./types";
 import { EditorialReader } from "./modes/EditorialReader";
 import { HypertextReader } from "./modes/HypertextReader";
@@ -296,8 +297,38 @@ function BookMode({ content }: { content: ReaderContent }) {
     setCurrentPage((page) => Math.min(totalPages - 1, page + 1));
   };
 
+  const handleBookKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      goPrevious();
+      return;
+    }
+
+    if (event.key === "ArrowRight" || event.key === " ") {
+      event.preventDefault();
+      goNext();
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      setCurrentPage(0);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      setCurrentPage(Math.max(0, totalPages - 1));
+    }
+  };
+
   return (
-    <section className="calamus calamus--book-frame" aria-label="Book reading mode">
+    <section
+      className="calamus calamus--book-frame"
+      aria-label="Book reading mode"
+      tabIndex={0}
+      onKeyDown={handleBookKeyDown}
+    >
       <div className="calamus__book-page">
         <header className="calamus__head calamus__head--book">
           <p className="calamus__mode-label">less --book</p>
