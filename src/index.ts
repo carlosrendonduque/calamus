@@ -1,4 +1,4 @@
 import "./styles.css";
 
 export { Reader } from "./Reader";
-export type { ReaderContent, ReaderMode, ReaderProps, ReaderTheme } from "./types";
+export type { ReaderContent, ReaderMode, ReaderProps, ReaderTheme, ReaderTransition } from "./types";
