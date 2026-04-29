@@ -1,0 +1,120 @@
+:where(.calamus-root) {
+  --calamus-bg: #f4f2ec;
+  --calamus-panel: #ede9df;
+  --calamus-fg: #26241f;
+  --calamus-muted: #696353;
+  --calamus-accent: #6f7559;
+  --calamus-border: #c8c1af;
+  --calamus-terminal-bg: #171714;
+  --calamus-terminal-fg: #d8d6c8;
+  --calamus-terminal-muted: #a9a38f;
+  --calamus-terminal-emphasis: #f2efe2;
+  --calamus-terminal-eof: #938a72;
+  --calamus-terminal-border: #3f3a2f;
+  --calamus-serif-font: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+    Georgia, "Times New Roman", serif;
+  --calamus-mono-font: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+}
+
+.calamus-root {
+  color: var(--calamus-fg);
+  font-family: var(--calamus-serif-font);
+}
+
+.calamus {
+  border: 1px solid var(--calamus-border);
+  border-radius: 16px;
+  background: var(--calamus-bg);
+}
+
+.calamus__head {
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--calamus-border);
+}
+
+.calamus__head--book {
+  text-align: center;
+}
+
+.calamus__mode-label {
+  margin: 0;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.74rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--calamus-muted);
+}
+
+.calamus__title {
+  margin: 0.8rem 0 0;
+  font-size: clamp(1.7rem, 2.9vw, 2.3rem);
+  line-height: 1.15;
+}
+
+.calamus__subtitle {
+  margin: 0.5rem 0 0;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.84rem;
+  color: var(--calamus-muted);
+}
+
+.calamus__body {
+  max-width: 68ch;
+}
+
+.calamus__paragraph {
+  margin: 0 0 1.2rem;
+  font-size: clamp(1rem, 1.5vw, 1.12rem);
+  line-height: 1.9;
+}
+
+.calamus--scroll {
+  padding: 1.4rem;
+}
+
+.calamus--terminal {
+  padding: 1.2rem;
+  background: var(--calamus-terminal-bg);
+  color: var(--calamus-terminal-fg);
+  border-color: var(--calamus-terminal-border);
+  font-family: var(--calamus-mono-font);
+}
+
+.calamus--terminal .calamus__title {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: var(--calamus-terminal-emphasis);
+  font-size: 1.35rem;
+}
+
+.calamus--terminal .calamus__paragraph {
+  margin-bottom: 0.9rem;
+  font-size: 0.94rem;
+  line-height: 1.7;
+}
+
+.calamus__terminal-header {
+  margin-bottom: 1rem;
+  color: var(--calamus-terminal-muted);
+  font-size: 0.84rem;
+}
+
+.calamus__eof {
+  margin-top: 1.2rem;
+  color: var(--calamus-terminal-eof);
+  font-size: 0.78rem;
+}
+
+.calamus--book-frame {
+  padding: 0.9rem;
+  background: color-mix(in srgb, var(--calamus-bg), #000 4%);
+}
+
+.calamus__book-page {
+  border: 1px solid var(--calamus-border);
+  border-radius: 12px;
+  background: var(--calamus-panel);
+  padding: 1.4rem;
+}

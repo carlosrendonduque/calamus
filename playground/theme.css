@@ -1,0 +1,84 @@
+:root {
+  color-scheme: light;
+  background: #f0f3ef;
+  color: #1f2a28;
+  font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% 12%, rgba(176, 196, 168, 0.32), transparent 35%),
+    radial-gradient(circle at 88% 6%, rgba(186, 180, 210, 0.24), transparent 33%),
+    #eef2ea;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.playground {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2.1rem 1rem 3rem;
+}
+
+.playground__header {
+  margin-bottom: 1rem;
+}
+
+.playground__header h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.playground__header p {
+  margin: 0.35rem 0 0;
+  color: #4d5c58;
+}
+
+.playground__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+}
+
+.playground__modes button {
+  border: 1px solid #a7b6b2;
+  background: #f8fbf7;
+  color: #263635;
+  border-radius: 999px;
+  padding: 0.5rem 0.85rem;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.playground__modes button:hover {
+  border-color: #6f8680;
+}
+
+.playground__modes button.is-active {
+  border-color: #4d6861;
+  background: #dce8e2;
+}
+
+.playground .calamus-root {
+  --calamus-bg: #fdfcf8;
+  --calamus-panel: #f3efe6;
+  --calamus-fg: #2e342f;
+  --calamus-muted: #5f6e66;
+  --calamus-accent: #4f6c66;
+  --calamus-border: #cdd6cc;
+  --calamus-serif-font: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --calamus-mono-font: "JetBrains Mono", "IBM Plex Mono", Menlo, monospace;
+}
