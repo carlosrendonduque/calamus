@@ -44,13 +44,60 @@ function renderParagraphs(body: string[]) {
 
 function TerminalMode({ content }: { content: ReaderContent }) {
   const sourceName = content.subtitle ?? "document.txt";
+  const containerRef = useRef<HTMLElement | null>(null);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updateProgress = () => {
+      const maxScrollable = element.scrollHeight - element.clientHeight;
+
+      if (maxScrollable <= 0) {
+        setProgress(0);
+        return;
+      }
+
+      setProgress(Math.min(1, Math.max(0, element.scrollTop / maxScrollable)));
+    };
+
+    updateProgress();
+    element.addEventListener("scroll", updateProgress, { passive: true });
+
+    const observer = new ResizeObserver(() => {
+      updateProgress();
+    });
+
+    observer.observe(element);
+
+    return () => {
+      element.removeEventListener("scroll", updateProgress);
+      observer.disconnect();
+    };
+  }, [content.body, content.subtitle, content.title]);
 
   return (
-    <section className="calamus calamus--terminal" aria-label="Terminal reading mode">
+    <section
+      ref={containerRef}
+      className="calamus calamus--terminal"
+      aria-label="Terminal reading mode"
+    >
       <header className="calamus__terminal-header">$ cat {sourceName}</header>
       <h1 className="calamus__title"># {content.title}</h1>
       {renderParagraphs(content.body)}
       <footer className="calamus__eof">[EOF]</footer>
+      <div className="calamus__terminal-progress" aria-hidden="true">
+        <div className="calamus__terminal-progress-line">
+          <div
+            className="calamus__terminal-progress-fill"
+            style={{ width: `${Math.round(progress * 100)}%` }}
+          />
+        </div>
+        <span className="calamus__terminal-progress-value">{`(${Math.round(progress * 100)}%)`}</span>
+      </div>
     </section>
   );
 }
