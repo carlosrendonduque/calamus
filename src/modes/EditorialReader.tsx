@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, TouchEvent } from "react";
-import type { ReaderContent } from "../types";
+import type { ReaderContent, ReaderTransition } from "../types";
 
 type EditorialReaderProps = {
   content: ReaderContent;
   readingTimeText: string;
+  transition: ReaderTransition;
 };
 
 type EditorialSheet = number[][];
@@ -54,7 +55,7 @@ function paginateEditorialParagraphs(
   return sheets;
 }
 
-export function EditorialReader({ content, readingTimeText }: EditorialReaderProps) {
+export function EditorialReader({ content, readingTimeText, transition }: EditorialReaderProps) {
   const sourceName = content.subtitle ? `viewer --editorial ${content.subtitle}` : "viewer --editorial";
   const bodyRef = useRef<HTMLElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
@@ -212,6 +213,15 @@ export function EditorialReader({ content, readingTimeText }: EditorialReaderPro
     goPrevious();
   };
 
+  const transitionClassName =
+    transition === "none"
+      ? "calamus__editorial-sheet-content--none"
+      : transition === "slide"
+        ? navDirection === "forward"
+          ? "calamus__editorial-sheet-content--slide-forward"
+          : "calamus__editorial-sheet-content--slide-backward"
+        : "calamus__editorial-sheet-content--fade";
+
   return (
     <section
       className="calamus calamus--editorial"
@@ -235,8 +245,8 @@ export function EditorialReader({ content, readingTimeText }: EditorialReaderPro
         data-total-sheets={totalSheets}
       >
         <div
-          key={`${currentSheet}-${navDirection}`}
-          className="calamus__editorial-sheet-content"
+          key={`${currentSheet}-${transition}-${navDirection}`}
+          className={`calamus__editorial-sheet-content ${transitionClassName}`}
           data-nav-direction={navDirection}
         >
           {currentColumns.map((columnParagraphs, columnIndex) => (

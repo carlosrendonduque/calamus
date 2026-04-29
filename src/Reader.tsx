@@ -456,7 +456,7 @@ export function Reader({
       {mode === "scroll" ? <ScrollMode content={content} readingTimeText={readingTimeText} /> : null}
       {mode === "book" ? <BookMode content={content} transition={transition} /> : null}
       {mode === "editorial" ? (
-        <EditorialReader content={content} readingTimeText={readingTimeText} />
+        <EditorialReader content={content} readingTimeText={readingTimeText} transition={transition} />
       ) : null}
       {mode === "hypertext" ? <HypertextReader content={content}>{children}</HypertextReader> : null}
     </div>
