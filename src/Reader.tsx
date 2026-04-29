@@ -131,11 +131,49 @@ function TerminalMode({ content }: { content: ReaderContent }) {
     };
   }, [content.body, content.subtitle, content.title]);
 
+  const handleTerminalKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    const element = containerRef.current;
+    if (!element) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      element.scrollBy({ top: 80, behavior: "smooth" });
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      element.scrollBy({ top: -80, behavior: "smooth" });
+      return;
+    }
+
+    if (event.key === " ") {
+      event.preventDefault();
+      element.scrollBy({ top: element.clientHeight, behavior: "smooth" });
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      element.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
+    }
+  };
+
   return (
     <section
       ref={containerRef}
       className="calamus calamus--terminal"
       aria-label="Terminal reading mode"
+      tabIndex={0}
+      onKeyDown={handleTerminalKeyDown}
     >
       <header className="calamus__terminal-header">$ cat {sourceName}</header>
       <h1 className="calamus__title"># {content.title}</h1>
@@ -196,11 +234,49 @@ function ScrollMode({
     };
   }, [content.body, content.subtitle, content.title]);
 
+  const handleScrollKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    const element = containerRef.current;
+    if (!element) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      element.scrollBy({ top: 80, behavior: "smooth" });
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      element.scrollBy({ top: -80, behavior: "smooth" });
+      return;
+    }
+
+    if (event.key === " ") {
+      event.preventDefault();
+      element.scrollBy({ top: element.clientHeight, behavior: "smooth" });
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      element.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
+    }
+  };
+
   return (
     <article
       ref={containerRef}
       className="calamus calamus--scroll"
       aria-label="Scroll reading mode"
+      tabIndex={0}
+      onKeyDown={handleScrollKeyDown}
     >
       <div className="calamus__scroll-progress-track" aria-hidden="true">
         <div className="calamus__scroll-progress-fill" style={{ width: `${progress * 100}%` }} />
