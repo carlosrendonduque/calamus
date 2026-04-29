@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent } from "react";
 import type { ReaderContent } from "../types";
 
 type EditorialReaderProps = {
@@ -144,8 +145,40 @@ export function EditorialReader({ content, readingTimeText }: EditorialReaderPro
     setCurrentSheet((sheet) => Math.min(totalSheets - 1, sheet + 1));
   };
 
+  const handleEditorialKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      goPrevious();
+      return;
+    }
+
+    if (event.key === "ArrowRight" || event.key === " ") {
+      event.preventDefault();
+      goNext();
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      setNavDirection("backward");
+      setCurrentSheet(0);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      setNavDirection("forward");
+      setCurrentSheet(Math.max(0, totalSheets - 1));
+    }
+  };
+
   return (
-    <section className="calamus calamus--editorial" aria-label="Editorial reading mode">
+    <section
+      className="calamus calamus--editorial"
+      aria-label="Editorial reading mode"
+      tabIndex={0}
+      onKeyDown={handleEditorialKeyDown}
+    >
       <header className="calamus__head">
         <p className="calamus__mode-label">{sourceName}</p>
         <h1 className="calamus__title">{content.title}</h1>
