@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, TouchEvent } from "react";
 import type { ReaderContent, ReaderProps, ReaderTheme } from "./types";
 import { EditorialReader } from "./modes/EditorialReader";
 import { HypertextReader } from "./modes/HypertextReader";
@@ -280,6 +280,8 @@ function BookMode({ content }: { content: ReaderContent }) {
   const totalPages = pages.length;
   const canGoPrevious = currentPage > 0;
   const canGoNext = currentPage < totalPages - 1;
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const touchCurrentRef = useRef<{ x: number; y: number } | null>(null);
 
   const goPrevious = () => {
     if (!canGoPrevious) {
@@ -322,12 +324,53 @@ function BookMode({ content }: { content: ReaderContent }) {
     }
   };
 
+  const handleTouchStart = (event: TouchEvent<HTMLElement>) => {
+    const touch = event.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchMove = (event: TouchEvent<HTMLElement>) => {
+    const touch = event.touches[0];
+    touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = () => {
+    const start = touchStartRef.current;
+    const current = touchCurrentRef.current;
+    touchStartRef.current = null;
+    touchCurrentRef.current = null;
+
+    if (!start || !current) {
+      return;
+    }
+
+    const deltaX = current.x - start.x;
+    const deltaY = current.y - start.y;
+    const horizontalDistance = Math.abs(deltaX);
+    const verticalDistance = Math.abs(deltaY);
+
+    if (horizontalDistance < 50 || horizontalDistance <= verticalDistance) {
+      return;
+    }
+
+    if (deltaX < 0) {
+      goNext();
+      return;
+    }
+
+    goPrevious();
+  };
+
   return (
     <section
       className="calamus calamus--book-frame"
       aria-label="Book reading mode"
       tabIndex={0}
       onKeyDown={handleBookKeyDown}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       <div className="calamus__book-page">
         <header className="calamus__head calamus__head--book">
