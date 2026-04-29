@@ -62,7 +62,7 @@ export function App() {
         ))}
       </nav>
 
-      <Reader mode={mode} content={SAMPLE}>
+      <Reader mode={mode} content={SAMPLE} transition="fade">
         {mode === "hypertext" ? (
           <div className="playground__hypertext-demo">
             <p>

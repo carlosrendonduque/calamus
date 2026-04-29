@@ -7,6 +7,7 @@ export type ReaderContent = {
 };
 
 export type ReaderMode = "scroll" | "book" | "terminal" | "editorial" | "hypertext";
+export type ReaderTransition = "fade" | "slide" | "none";
 
 export type ReaderTheme = Partial<{
   background: string;
@@ -33,4 +34,5 @@ export type ReaderProps = {
   style?: CSSProperties;
   children?: ReactNode;
   readingTimeLabel?: string;
+  transition?: ReaderTransition;
 };

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { KeyboardEvent, TouchEvent } from "react";
-import type { ReaderContent, ReaderProps, ReaderTheme } from "./types";
+import type { ReaderContent, ReaderProps, ReaderTheme, ReaderTransition } from "./types";
 import { EditorialReader } from "./modes/EditorialReader";
 import { HypertextReader } from "./modes/HypertextReader";
 
@@ -216,11 +216,12 @@ function ScrollMode({
   );
 }
 
-function BookMode({ content }: { content: ReaderContent }) {
+function BookMode({ content, transition }: { content: ReaderContent; transition: ReaderTransition }) {
   const bodyRef = useRef<HTMLElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
   const [pages, setPages] = useState<number[][]>([content.body.map((_, index) => index)]);
   const [currentPage, setCurrentPage] = useState(0);
+  const [navDirection, setNavDirection] = useState<"forward" | "backward">("forward");
 
   useEffect(() => {
     const bodyElement = bodyRef.current;
@@ -288,6 +289,7 @@ function BookMode({ content }: { content: ReaderContent }) {
       return;
     }
 
+    setNavDirection("backward");
     setCurrentPage((page) => Math.max(0, page - 1));
   };
 
@@ -296,6 +298,7 @@ function BookMode({ content }: { content: ReaderContent }) {
       return;
     }
 
+    setNavDirection("forward");
     setCurrentPage((page) => Math.min(totalPages - 1, page + 1));
   };
 
@@ -314,12 +317,14 @@ function BookMode({ content }: { content: ReaderContent }) {
 
     if (event.key === "Home") {
       event.preventDefault();
+      setNavDirection("backward");
       setCurrentPage(0);
       return;
     }
 
     if (event.key === "End") {
       event.preventDefault();
+      setNavDirection("forward");
       setCurrentPage(Math.max(0, totalPages - 1));
     }
   };
@@ -362,6 +367,15 @@ function BookMode({ content }: { content: ReaderContent }) {
     goPrevious();
   };
 
+  const transitionClassName =
+    transition === "none"
+      ? "calamus__book-page-content--none"
+      : transition === "slide"
+        ? navDirection === "forward"
+          ? "calamus__book-page-content--slide-forward"
+          : "calamus__book-page-content--slide-backward"
+        : "calamus__book-page-content--fade";
+
   return (
     <section
       className="calamus calamus--book-frame"
@@ -384,7 +398,12 @@ function BookMode({ content }: { content: ReaderContent }) {
           data-current-page={currentPage + 1}
           data-total-pages={totalPages}
         >
-          {renderParagraphs(currentPageParagraphs)}
+          <div
+            key={`${currentPage}-${transition}-${navDirection}`}
+            className={`calamus__book-page-content ${transitionClassName}`}
+          >
+            {renderParagraphs(currentPageParagraphs)}
+          </div>
         </article>
         <div className="calamus__book-nav" aria-label="Book page navigation">
           <button
@@ -420,7 +439,8 @@ export function Reader({
   className,
   style,
   children,
-  readingTimeLabel = "min de lectura"
+  readingTimeLabel = "min de lectura",
+  transition = "fade"
 }: ReaderProps) {
   const mergedStyle = {
     ...themeToCssVars(theme),
@@ -434,7 +454,7 @@ export function Reader({
     <div className={rootClassName} style={mergedStyle}>
       {mode === "terminal" ? <TerminalMode content={content} /> : null}
       {mode === "scroll" ? <ScrollMode content={content} readingTimeText={readingTimeText} /> : null}
-      {mode === "book" ? <BookMode content={content} /> : null}
+      {mode === "book" ? <BookMode content={content} transition={transition} /> : null}
       {mode === "editorial" ? (
         <EditorialReader content={content} readingTimeText={readingTimeText} />
       ) : null}
