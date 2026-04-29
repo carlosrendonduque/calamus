@@ -60,6 +60,7 @@ export function EditorialReader({ content, readingTimeText }: EditorialReaderPro
   const [sheets, setSheets] = useState<EditorialSheet[]>([[content.body.map((_, index) => index)]]);
   const [currentSheet, setCurrentSheet] = useState(0);
   const [columnCount, setColumnCount] = useState(1);
+  const [navDirection, setNavDirection] = useState<"forward" | "backward">("forward");
 
   useEffect(() => {
     const bodyElement = bodyRef.current;
@@ -121,6 +122,28 @@ export function EditorialReader({ content, readingTimeText }: EditorialReaderPro
     return sheet.map((column) => column.map((index) => content.body[index]));
   }, [columnCount, content.body, currentSheet, sheets]);
 
+  const totalSheets = sheets.length;
+  const canGoPrevious = currentSheet > 0;
+  const canGoNext = currentSheet < totalSheets - 1;
+
+  const goPrevious = () => {
+    if (!canGoPrevious) {
+      return;
+    }
+
+    setNavDirection("backward");
+    setCurrentSheet((sheet) => Math.max(0, sheet - 1));
+  };
+
+  const goNext = () => {
+    if (!canGoNext) {
+      return;
+    }
+
+    setNavDirection("forward");
+    setCurrentSheet((sheet) => Math.min(totalSheets - 1, sheet + 1));
+  };
+
   return (
     <section className="calamus calamus--editorial" aria-label="Editorial reading mode">
       <header className="calamus__head">
@@ -133,18 +156,45 @@ export function EditorialReader({ content, readingTimeText }: EditorialReaderPro
         ref={bodyRef}
         className="calamus__editorial-article calamus__editorial-sheet"
         data-current-sheet={currentSheet + 1}
-        data-total-sheets={sheets.length}
+        data-total-sheets={totalSheets}
       >
-        {currentColumns.map((columnParagraphs, columnIndex) => (
-          <div key={columnIndex} className="calamus__editorial-column">
-            {columnParagraphs.map((paragraph, paragraphIndex) => (
-              <p key={`${columnIndex}-${paragraphIndex}`} className="calamus__paragraph">
-                {paragraph}
-              </p>
-            ))}
-          </div>
-        ))}
+        <div
+          key={`${currentSheet}-${navDirection}`}
+          className="calamus__editorial-sheet-content"
+          data-nav-direction={navDirection}
+        >
+          {currentColumns.map((columnParagraphs, columnIndex) => (
+            <div key={columnIndex} className="calamus__editorial-column">
+              {columnParagraphs.map((paragraph, paragraphIndex) => (
+                <p key={`${columnIndex}-${paragraphIndex}`} className="calamus__paragraph">
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+          ))}
+        </div>
       </article>
+      <div className="calamus__editorial-nav" aria-label="Editorial sheet navigation">
+        <button
+          type="button"
+          className="calamus__editorial-nav-button"
+          onClick={goPrevious}
+          disabled={!canGoPrevious}
+          aria-label="Previous sheet"
+        >
+          ←
+        </button>
+        <span className="calamus__editorial-nav-status">{`Hoja ${currentSheet + 1} de ${totalSheets}`}</span>
+        <button
+          type="button"
+          className="calamus__editorial-nav-button"
+          onClick={goNext}
+          disabled={!canGoNext}
+          aria-label="Next sheet"
+        >
+          →
+        </button>
+      </div>
       <div ref={measureRef} className="calamus__editorial-measure" aria-hidden="true" />
     </section>
   );
