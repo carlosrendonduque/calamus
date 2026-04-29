@@ -11,6 +11,7 @@
   --calamus-terminal-emphasis: #f2efe2;
   --calamus-terminal-eof: #938a72;
   --calamus-terminal-border: #3f3a2f;
+  --calamus-column-gap: 2.4rem;
   --calamus-serif-font: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
     Georgia, "Times New Roman", serif;
   --calamus-mono-font: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
@@ -105,6 +106,37 @@
   margin-top: 1.2rem;
   color: var(--calamus-terminal-eof);
   font-size: 0.78rem;
+}
+
+.calamus--editorial {
+  padding: 1.6rem;
+}
+
+.calamus--editorial .calamus__head {
+  margin-bottom: 1.2rem;
+}
+
+.calamus--editorial .calamus__title {
+  margin-top: 0.2rem;
+  font-size: clamp(2rem, 4vw, 2.9rem);
+}
+
+.calamus__editorial-article {
+  margin: 0 auto;
+  max-width: 70ch;
+  column-count: 1;
+  column-gap: var(--calamus-column-gap);
+}
+
+@media (min-width: 768px) {
+  .calamus__editorial-article {
+    column-count: 2;
+  }
+}
+
+.calamus--editorial .calamus__paragraph {
+  break-inside: avoid;
+  margin-bottom: 1.15rem;
 }
 
 .calamus--book-frame {

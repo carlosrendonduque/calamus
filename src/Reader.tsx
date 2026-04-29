@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ReaderContent, ReaderMode, ReaderTheme } from "./types";
+import { EditorialReader } from "./modes/EditorialReader";
 
 type ReaderProps = {
   content: ReaderContent;
@@ -108,6 +109,7 @@ export function Reader({
       {mode === "terminal" ? <TerminalMode content={content} /> : null}
       {mode === "scroll" ? <ScrollMode content={content} /> : null}
       {mode === "book" ? <BookMode content={content} /> : null}
+      {mode === "editorial" ? <EditorialReader content={content} /> : null}
     </div>
   );
 }
