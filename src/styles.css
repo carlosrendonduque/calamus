@@ -98,6 +98,8 @@
 
 .calamus--terminal {
   padding: 1.2rem;
+  overflow: auto;
+  max-height: min(78vh, 860px);
   background: var(--calamus-terminal-bg);
   color: var(--calamus-terminal-fg);
   border-color: var(--calamus-terminal-border);
@@ -127,6 +129,37 @@
   margin-top: 1.2rem;
   color: var(--calamus-terminal-eof);
   font-size: 0.78rem;
+}
+
+.calamus__terminal-progress {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.8rem;
+  padding-top: 0.45rem;
+  background: linear-gradient(to bottom, transparent, var(--calamus-terminal-bg) 24%);
+}
+
+.calamus__terminal-progress-line {
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--calamus-terminal-muted), transparent 62%);
+}
+
+.calamus__terminal-progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--calamus-terminal-muted);
+  transition: width 140ms ease-out;
+}
+
+.calamus__terminal-progress-value {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.72rem;
+  color: var(--calamus-terminal-muted);
 }
 
 .calamus--editorial {
