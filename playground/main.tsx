@@ -6,6 +6,7 @@ import { App } from "./App";
 // src/index.ts, so relying on it here would ship an unstyled reader.
 import "../src/styles.css";
 import "./theme.css";
+import "./explorer.css";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
