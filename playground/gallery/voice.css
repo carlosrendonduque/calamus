@@ -1,0 +1,281 @@
+/* Voice and comparison: five gallery examples in which a text holds more than
+   one account of itself. Imported by the examples, so the styles travel with
+   them, and written with the library's own variables so the pieces sit inside
+   the reader rather than on top of it. */
+
+.playground__narrators,
+.playground__motifs,
+.playground__accounts,
+.playground__dispute,
+.playground__claims {
+  display: grid;
+  gap: 0.85rem;
+}
+
+/* Every control in these five keeps a ring, whatever the platform default. */
+.playground__narrators :focus-visible,
+.playground__motifs :focus-visible,
+.playground__accounts :focus-visible,
+.playground__dispute :focus-visible,
+.playground__claims :focus-visible {
+  outline: 2px solid var(--calamus-accent);
+  outline-offset: 2px;
+}
+
+/* Three narrators over one quotation */
+
+.playground__narrator {
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+  padding-inline-start: 0.95rem;
+  border-inline-start: 3px solid var(--calamus-accent);
+}
+
+.playground__narrators .playground__narrator blockquote {
+  margin: 0;
+  font-family: var(--calamus-serif-font);
+  font-size: 1.02rem;
+  line-height: 1.75;
+}
+
+/* Each voice keeps its own register, and the caption says whose it is. */
+.playground__narrator.is-surveyor blockquote {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.92rem;
+}
+
+.playground__narrator.is-lodger blockquote {
+  font-style: italic;
+}
+
+.playground__narrator.is-editor {
+  border-inline-start-style: dashed;
+}
+
+.playground__narrator.is-editor blockquote {
+  font-size: 0.95rem;
+  color: var(--calamus-muted);
+}
+
+.playground__narrator figcaption {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.75rem;
+  color: var(--calamus-muted);
+}
+
+.playground__narrator-who {
+  display: block;
+  color: var(--calamus-fg);
+  font-weight: 600;
+}
+
+/* Two marking passes over one paragraph */
+
+.playground__motif-passes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1.2rem;
+}
+
+.playground__motif-pass {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.8rem;
+  color: var(--calamus-muted);
+  cursor: pointer;
+}
+
+.playground__motif-pass input,
+.playground__claim input {
+  accent-color: var(--calamus-accent);
+}
+
+.playground__motifs .playground__motif-text {
+  font-size: 1.02rem;
+  line-height: 2;
+}
+
+/* Shape carries the mark as well as colour: an underline for a word kept, a
+   rule through a word struck. Neither reading depends on seeing the hue. */
+mark.playground__motif.is-kept {
+  padding: 0 0.14em;
+  border-radius: 2px;
+  color: var(--calamus-fg);
+  background: color-mix(in srgb, var(--calamus-accent), transparent 70%);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}
+
+s.playground__motif.is-struck {
+  color: var(--calamus-muted);
+  text-decoration-thickness: 2px;
+}
+
+/* Two accounts side by side */
+
+.playground__accounts-pair {
+  display: grid;
+  gap: 0.7rem;
+  /* One column as soon as the panel is narrower than two readable ones. */
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+
+.playground__account {
+  display: grid;
+  gap: 0.6rem;
+  align-content: start;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--calamus-border);
+  border-radius: 8px;
+  background: var(--calamus-panel);
+  background: color-mix(in srgb, var(--calamus-panel), #fff 26%);
+}
+
+.playground__accounts .playground__account h4 {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--calamus-muted);
+}
+
+.playground__accounts .playground__account-line {
+  font-size: 0.95rem;
+  line-height: 1.62;
+}
+
+.playground__accounts .playground__account-line.is-marked {
+  padding-inline-start: 0.55rem;
+  margin-inline-start: -0.55rem;
+  border-inline-start: 2px solid var(--calamus-accent);
+  background: color-mix(in srgb, var(--calamus-accent), transparent 90%);
+}
+
+.playground__account-subject {
+  display: block;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.7rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--calamus-muted);
+}
+
+/* A timeline whose rows hold two sources */
+
+.playground__dispute-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.playground__dispute-row {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--calamus-border);
+  border-inline-start: 3px dashed var(--calamus-border);
+  border-radius: 8px;
+}
+
+.playground__dispute-row.is-split {
+  border-inline-start: 3px solid var(--calamus-accent);
+}
+
+.playground__dispute .playground__dispute-time {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.76rem;
+  color: var(--calamus-muted);
+}
+
+.playground__dispute-verdict {
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.playground__dispute-row.is-split .playground__dispute-verdict {
+  color: var(--calamus-fg);
+  font-weight: 600;
+}
+
+.playground__dispute-sources {
+  margin: 0.5rem 0 0;
+  display: grid;
+  gap: 0.45rem 1.1rem;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.playground__dispute-sources dt {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.7rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--calamus-muted);
+}
+
+.playground__dispute-sources dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* Statements held together until they will not hold */
+
+.playground__claim-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.playground__claim {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--calamus-border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  cursor: pointer;
+}
+
+.playground__claim.is-held {
+  border-color: var(--calamus-accent);
+  background: color-mix(in srgb, var(--calamus-accent), transparent 88%);
+}
+
+.playground__claim input {
+  margin-top: 0.22em;
+}
+
+.playground__claims .playground__claim-verdict {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--calamus-muted);
+}
+
+.playground__claims .playground__claim-verdict.is-broken {
+  padding-inline-start: 0.6rem;
+  border-inline-start: 3px solid var(--calamus-accent);
+  color: var(--calamus-fg);
+}
+
+@media (max-width: 560px) {
+  .playground__account {
+    padding: 0.7rem 0.75rem;
+  }
+
+  .playground__motifs .playground__motif-text {
+    line-height: 1.9;
+  }
+}

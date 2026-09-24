@@ -27,9 +27,12 @@ Work preparing the library for its first public release.
   to `main`, on Node 20 and 22.
 - npm metadata in `package.json`: `keywords`, `repository`, `homepage`, `bugs`, `author` and
   `sideEffects`.
-- A gallery of six worked `hypertext` examples in the playground, each rendering its own source
-  file so the listing cannot drift from what runs. `hypertext` renders `children` instead of
-  `content.body`, so the mode can only be explained by example.
+- A catalogue of 32 worked `hypertext` examples in the playground, grouped into nine categories
+  by capability, filterable, and addressable one by one through the URL. Each renders its own
+  source file so the listing cannot drift from what runs. `hypertext` renders `children` instead
+  of `content.body`, so the mode can only be explained by example. No example fetches anything:
+  images are inline SVG, sound is synthesised with the Web Audio API on a gesture, moving images
+  are animated SVG.
 - Public-domain example corpus under `examples/`, so the reading modes can be demonstrated on
   real writing without the library carrying content of its own.
 - `labels` prop (`ReaderLabels`) overriding every user-facing string, so the reader can be

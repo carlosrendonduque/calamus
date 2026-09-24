@@ -1,0 +1,144 @@
+/* Reader state and rewriting: five examples that keep something about the
+   visitor and edit the prose accordingly. Shaped after the gallery's own block
+   in explorer.css, which already supplies the pill buttons and focus ring. */
+
+.playground__session,
+.playground__trust,
+.playground__board,
+.playground__meta,
+.playground__lens {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.playground__session-label {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--calamus-muted);
+}
+
+.playground__session textarea,
+.playground__meta input[type="text"] {
+  width: 100%;
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--calamus-fg);
+  background: color-mix(in srgb, var(--calamus-panel), #fff 40%);
+  border: 1px solid var(--calamus-border);
+  border-radius: 7px;
+  padding: 0.45rem 0.55rem;
+}
+
+.playground__session textarea {
+  resize: vertical;
+}
+
+/* Reliability: the hedged clauses are set apart by weight and a rule as well as
+   by colour, so the state is never carried by the tint alone. */
+
+.playground__trust .control__label,
+.playground__trust .control__range output {
+  font-family: var(--calamus-mono-font);
+  color: var(--calamus-muted);
+}
+
+.playground__trust .control__range input[type="range"] {
+  accent-color: var(--calamus-accent);
+}
+
+.playground__trust-account {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.playground__trust-account p.is-plain,
+.playground__trust-account p.is-hedged {
+  font-family: var(--calamus-serif-font);
+  font-size: 1.02rem;
+  padding-inline-start: 0.7rem;
+  border-inline-start: 2px solid var(--calamus-border);
+}
+
+.playground__trust-account p.is-plain {
+  border-inline-start-style: solid;
+  border-inline-start-color: var(--calamus-accent);
+}
+
+.playground__trust-account p.is-hedged {
+  border-inline-start-style: dashed;
+  font-style: italic;
+  color: var(--calamus-muted);
+}
+
+/* Pin-board: the SVG is decorative, and sized in its own aspect ratio so it
+   cannot push the page sideways on a phone. */
+
+.playground__board-svg {
+  width: 100%;
+  max-width: 30rem;
+  aspect-ratio: 100 / 62;
+  border: 1px solid var(--calamus-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--calamus-panel), #fff 26%);
+}
+
+.playground__board-svg line {
+  stroke: var(--calamus-accent);
+  stroke-width: 0.6;
+  stroke-dasharray: 2.4 1.6;
+}
+
+.playground__board-svg circle {
+  fill: var(--calamus-border);
+}
+
+.playground__board-svg text {
+  font-family: var(--calamus-mono-font);
+  font-size: 3.1px;
+  fill: var(--calamus-muted);
+}
+
+.playground__board-svg g.is-pinned circle {
+  fill: var(--calamus-accent);
+}
+
+.playground__board-svg g.is-pinned text {
+  fill: var(--calamus-fg);
+  font-weight: 600;
+}
+
+.playground__board-links {
+  margin: 0.45rem 0 0;
+  padding-inline-start: 1.2rem;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.78rem;
+  color: var(--calamus-muted);
+}
+
+/* Rewriting: substitutions marked by an underline, not a highlight alone. */
+
+.playground__meta-line,
+.playground__lens-ending {
+  font-family: var(--calamus-serif-font);
+  font-size: 1.04rem;
+}
+
+.playground__meta-edit {
+  background: color-mix(in srgb, var(--calamus-accent), transparent 86%);
+  text-decoration: underline dotted;
+  text-underline-offset: 0.22em;
+  border-radius: 2px;
+  padding: 0 0.1em;
+}
+
+.playground__lens-facts {
+  margin: 0;
+  padding-inline-start: 1.1rem;
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.92rem;
+  color: var(--calamus-muted);
+}

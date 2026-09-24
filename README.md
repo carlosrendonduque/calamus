@@ -232,6 +232,23 @@ custom property. Every key is optional; unset keys keep the defaults from `src/s
 | `monoFontFamily` | `--calamus-mono-font` | Labels, counters, `terminal` mode |
 | `maxHeight` | `--calamus-max-height` | Height of the reading surface. Default `min(78vh, 860px)` |
 
+Your own markup can use these tokens. In `hypertext` mode `children` render inside the
+reader's root, where every `--calamus-*` variable is in scope, so a component you pass in can
+take the reader's colours and faces and stay in step when the theme changes:
+
+```css
+.my-annotation {
+  color: var(--calamus-muted);
+  font-family: var(--calamus-serif-font);
+  border-left: 2px solid var(--calamus-border);
+}
+```
+
+The catch is that the tokens are declared on `.calamus-root` and nowhere else. Outside it they
+do not resolve and there is no fallback: the declaration is simply dropped and the element
+inherits whatever your page already said. If a component styled this way looks wrong, check
+that it is actually rendering inside the reader.
+
 `maxHeight` is the one token that is not a colour or a font. By default the reader sizes
 itself against the viewport, which suits a page given over to reading. Set it to `"100%"` and
 put the reader in a host element with a definite height when you want it to fit a card, a
@@ -381,10 +398,14 @@ box you can resize to watch `book` and `editorial` re-paginate, and a code panel
 for whatever you have set, ready to paste. You can drop your own prose in and read it in all
 five modes.
 
-`hypertext` mode opens a gallery of six worked examples — redaction, a footnote chain, a
-calligram, typographic erosion, a labyrinth and a text that remembers its reader — each
-showing its own source, because in that mode the markup is yours and the library only frames
-it.
+`hypertext` mode opens a catalogue of **32 worked examples**, grouped by what they let you do:
+concealment, structure, typography, apparatus, reader state, voice, comparison, rewriting and
+media. Each one shows its own source file, because in that mode the markup is yours and the
+library only frames it. Every example is addressable — append `#/gallery/<id>` to the demo URL
+to open one directly.
+
+Nothing in the catalogue fetches anything: the images are drawn as inline SVG, the sound is
+synthesised with the Web Audio API on a user gesture, and the moving images are animated SVG.
 
 To run it locally:
 

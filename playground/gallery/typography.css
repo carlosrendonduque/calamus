@@ -1,0 +1,194 @@
+/* Typography and measure: the gallery cases about where words sit on the page.
+
+   Imported by the case files themselves, so the styles travel with them. Every
+   rule is scoped to one case block and built out of the library's own tokens, so
+   changing a theme colour in the panel carries the gallery with it. Where an
+   example is arithmetic on a layout, React hands over one custom property and
+   the sums are done here. */
+
+/* Rotated blocks */
+
+.playground__type-rotation,
+.playground__type-mirror,
+.playground__type-sparse,
+.playground__type-columns,
+.playground__type-measure {
+  display: grid;
+  gap: 0.9rem;
+}
+
+/* The tilt is clipped rather than scrolled: a rotated block grows a little each
+   side, and the page is not going to move for it. The gap opens as the stack
+   scatters, because two blocks leaning opposite ways meet in the middle. */
+.playground__type-stack {
+  display: grid;
+  gap: calc(0.9rem + var(--tilt) * 1.1rem);
+  padding: 0.9rem 1.3rem;
+  overflow: hidden;
+  transition: gap 180ms ease-out;
+}
+
+.playground__type-leaf {
+  /* A card, not a banner: a long block turned three degrees throws its far end
+     a long way down, and the measure was too wide to read anyway. */
+  max-width: min(100%, 34rem);
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--calamus-border);
+  border-radius: 3px;
+  background: var(--calamus-panel);
+  background: color-mix(in srgb, var(--calamus-panel), #fff 30%);
+  font-family: var(--calamus-serif-font);
+  font-size: 0.97rem;
+  /* One number from React, four angles: `--lean` is the block's own share of it. */
+  transform: rotate(calc(var(--tilt) * var(--lean) * 1deg));
+  transition: transform 180ms ease-out;
+}
+
+.playground__type-leaf-mark {
+  display: block;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--calamus-muted);
+}
+
+/* Mirror */
+
+.playground__type-glass {
+  margin: 0;
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem 0;
+  border-block: 1px solid var(--calamus-border);
+}
+
+.playground__type-face,
+.playground__type-reflection {
+  font-family: var(--calamus-serif-font);
+  font-size: 1.05rem;
+}
+
+/* The surface of the glass, so the pair reads as one thing seen twice. */
+.playground__type-face {
+  padding-block-end: 0.55rem;
+  border-block-end: 1px solid var(--calamus-border);
+  width: fit-content;
+  min-width: 14rem;
+}
+
+.playground__type-reflection {
+  /* Sized to its own text, so the line turns where it stands instead of being
+     thrown across a full-width box by its own reflection. */
+  width: fit-content;
+  /* Two numbers, one scale. The paragraph's text is never touched. */
+  transform: scale(var(--flip-x), var(--flip-y));
+  transform-origin: center;
+  color: var(--calamus-muted);
+  transition: transform 200ms ease-out;
+}
+
+/* Sparse isolation */
+
+.playground__type-field {
+  position: relative;
+  height: 15rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 0.4rem;
+  list-style: none;
+  border-block: 1px solid var(--calamus-border);
+  scroll-behavior: auto;
+  text-align: center;
+}
+
+.playground__type-sheet {
+  /* The silence, in empty lines, as the poem sets it. */
+  margin-block-start: calc(var(--blanks) * 1.55em);
+}
+
+.playground__type-sheet:first-child {
+  padding-block-start: 1.6em;
+}
+
+.playground__type-sheet:last-child {
+  padding-block-end: 4em;
+}
+
+.playground__type-void {
+  display: block;
+  margin-block-end: 0.5em;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  color: var(--calamus-muted);
+}
+
+.playground__type-fragment {
+  font-family: var(--calamus-serif-font);
+  font-size: 1.15rem;
+  letter-spacing: 0.22em;
+}
+
+/* Columns */
+
+.playground__type-column-block {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--calamus-border);
+  border-radius: 6px;
+  /* The count is a ceiling: with a minimum width set too, a narrow container is
+     given fewer columns rather than lines nobody can read. */
+  column-width: 13rem;
+  column-count: var(--cols);
+  column-gap: calc(var(--gutter) * 1px);
+  font-family: var(--calamus-serif-font);
+  font-size: 0.92rem;
+  hyphens: auto;
+}
+
+.playground__type-column-block p + p {
+  margin-block-start: 0.8em;
+}
+
+/* Measure */
+
+.playground__type-column {
+  width: min(100%, calc(var(--measure) * 1ch));
+  padding-block: 1rem;
+  border-block: 2px solid var(--calamus-border);
+  font-family: var(--calamus-serif-font);
+  font-size: 1rem;
+  transition: width 140ms ease-out;
+}
+
+/* The band, marked by the rule as well as by the note under it. */
+.playground__type-column.is-comfortable {
+  border-block-color: var(--calamus-accent);
+  border-block-color: color-mix(in srgb, var(--calamus-accent), transparent 35%);
+}
+
+@media (max-width: 560px) {
+  .playground__type-stack {
+    padding-inline: 0.6rem;
+  }
+
+  .playground__type-field {
+    height: 12rem;
+  }
+
+  .playground__type-fragment {
+    font-size: 1rem;
+    letter-spacing: 0.14em;
+  }
+}
+
+/* The angles, the flip and the widths all stay: they are the examples. What goes
+   is the travel between one state and the next. */
+@media (prefers-reduced-motion: reduce) {
+  .playground__type-stack,
+  .playground__type-leaf,
+  .playground__type-reflection,
+  .playground__type-column {
+    transition: none;
+  }
+}

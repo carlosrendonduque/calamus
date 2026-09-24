@@ -1,0 +1,305 @@
+/*
+ * Structure and apparatus examples: the reader assembles the order, and the text
+ * keeps, loses or refuses a record of it. Two rules hold the batch together.
+ * First, a choice belongs to the reading face — serif, at reading size — while
+ * anything that manages the piece stays in the small mono face, so a choice never
+ * looks like interface. Second, no state is carried by colour alone: every mark
+ * here is a word the CSS only positions.
+ */
+
+.playground__trail,
+.playground__anchor,
+.playground__unstable,
+.playground__snapshot,
+.playground__packet {
+  display: grid;
+  gap: 0.85rem;
+}
+
+/* The library's focus ring is restated so a copied example keeps a visible
+   focus without the explorer's stylesheet. */
+.playground__trail :focus-visible,
+.playground__anchor :focus-visible,
+.playground__unstable :focus-visible,
+.playground__snapshot :focus-visible,
+.playground__packet :focus-visible {
+  outline: 2px solid var(--calamus-accent);
+  outline-offset: 2px;
+}
+
+/* Append-only trail: a ledger down the page, not a breadcrumb across it, because
+   the record is what the piece is about and it has to be able to grow long. */
+
+.playground__trail-book {
+  list-style: none;
+  counter-reset: line;
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0 0 0 0.75rem;
+  border-inline-start: 2px solid var(--calamus-border);
+  font-family: var(--calamus-mono-font);
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+.playground__trail-book li::before {
+  counter-increment: line;
+  content: counter(line, decimal-leading-zero) ". ";
+  color: var(--calamus-muted);
+}
+
+.playground__trail-book li[aria-current] {
+  font-weight: 600;
+}
+
+.playground__trail-book li.is-struck {
+  color: var(--calamus-muted);
+  text-decoration: line-through;
+}
+
+.playground__trail-empty {
+  color: var(--calamus-muted);
+}
+
+.playground__trail-mark,
+.playground__packet-mark {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.72rem;
+  color: var(--calamus-muted);
+  text-decoration: none;
+}
+
+.playground__trail-mark::before,
+.playground__packet-mark::before {
+  content: " · ";
+}
+
+.playground__trail-choices,
+.playground__unstable-turns {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+}
+
+.playground__gallery .playground__trail-choices button,
+.playground__gallery .playground__unstable-turns button,
+.playground__gallery .playground__snapshot-choices button {
+  font-family: var(--calamus-serif-font);
+  font-size: 0.95rem;
+  padding: 0.42rem 0.9rem;
+  max-width: 100%;
+}
+
+/* Anchors: a main line, its apparatus, and a log of the moves between them. */
+
+.playground__anchor-line {
+  font-family: var(--calamus-serif-font);
+  font-size: 1.04rem;
+}
+
+.playground__gallery .playground__anchor-line button {
+  font-size: 0.74rem;
+  padding: 0.05rem 0.5rem;
+  margin: 0 0.1rem;
+  vertical-align: 0.1em;
+}
+
+.playground__anchor-apparatus {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.playground__anchor-apparatus section {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--calamus-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--calamus-panel), #fff 22%);
+}
+
+.playground__anchor-apparatus h4 {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--calamus-muted);
+}
+
+.playground__anchor-log {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.playground__anchor-jumps {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.72rem;
+  color: var(--calamus-muted);
+}
+
+.playground__anchor-jumps li {
+  padding: 0.12rem 0.5rem;
+  border: 1px dashed var(--calamus-border);
+  border-radius: 999px;
+}
+
+.playground__anchor-jumps li[aria-current] {
+  border-style: solid;
+  border-color: var(--calamus-accent);
+  color: var(--calamus-fg);
+}
+
+/* Unstable links: the passage the reader assembled, then what is left to take. */
+
+.playground__unstable-passage {
+  display: grid;
+  gap: 0.5rem;
+  font-family: var(--calamus-serif-font);
+  font-size: 1.02rem;
+}
+
+.playground__unstable-name {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--calamus-muted);
+}
+
+/* Route snapshots: one walk in progress, then two of them held side by side. */
+
+.playground__snapshot-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.playground__snapshot-route {
+  list-style: none;
+  counter-reset: step;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.73rem;
+  color: var(--calamus-muted);
+}
+
+.playground__snapshot-route:empty::after {
+  content: "not walking yet";
+}
+
+.playground__snapshot-route li {
+  padding: 0.14rem 0.55rem;
+  border: 1px dashed var(--calamus-border);
+  border-radius: 999px;
+}
+
+.playground__snapshot-route li[aria-current] {
+  border-style: solid;
+  border-color: var(--calamus-accent);
+  color: var(--calamus-fg);
+  font-weight: 600;
+}
+
+.playground__snapshot-compare {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--calamus-border);
+  border-radius: 8px;
+}
+
+.playground__snapshot-heads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--calamus-muted);
+}
+
+.playground__snapshot-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+/* A step of one walk beside the same step of the other, and the word for how
+   they stand. Narrow screens drop the word onto its own line rather than clip. */
+.playground__snapshot-rows li {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.1rem 0.6rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+
+.playground__snapshot-rows li.is-shared {
+  background: color-mix(in srgb, var(--calamus-accent), transparent 90%);
+}
+
+.playground__snapshot-flag {
+  grid-column: 1 / -1;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.7rem;
+  color: var(--calamus-muted);
+}
+
+/* Wide enough for two columns and the word: the routes are capped so the two
+   steps being compared stay near each other instead of drifting to the margins. */
+@media (min-width: 30rem) {
+  .playground__snapshot-heads,
+  .playground__snapshot-rows li {
+    grid-template-columns: minmax(0, 11rem) minmax(0, 11rem) auto;
+  }
+
+  .playground__snapshot-flag {
+    grid-column: auto;
+  }
+}
+
+/* Document packet: three sheets, the first already open. */
+
+.playground__packet-sheet {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--calamus-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--calamus-panel), #fff 18%);
+}
+
+.playground__packet-sheet summary {
+  cursor: pointer;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.78rem;
+  color: var(--calamus-fg);
+}
+
+.playground__packet-sheet[open] summary {
+  margin-bottom: 0.45rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--calamus-border);
+}
+
+.playground__packet-sheet p {
+  font-family: var(--calamus-serif-font);
+  font-size: 0.98rem;
+}

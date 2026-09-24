@@ -1,0 +1,265 @@
+/*
+ * Media examples: images, sound and motion made by the page. Every plate is
+ * inline SVG, so its ink is set here rather than baked into the markup, and the
+ * one animation is paused by default and scrubbed from `--t`.
+ */
+
+.playground__media-case {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+}
+
+/* Plates */
+
+.playground__media-plate {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--calamus-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--calamus-panel), #fff 18%);
+}
+
+.playground__media-ground {
+  fill: color-mix(in srgb, var(--calamus-panel), var(--calamus-fg) 6%);
+}
+
+/* The floor of the drawn corridor, so the perspective reads as depth. */
+.playground__media-floor {
+  fill: color-mix(in srgb, var(--calamus-panel), var(--calamus-fg) 13%);
+}
+
+.playground__media-line,
+.playground__media-wall,
+.playground__media-swing,
+.playground__media-stair path,
+.playground__media-person path,
+.playground__media-lamp path {
+  fill: none;
+  stroke: var(--calamus-muted);
+  stroke-width: 1.2;
+}
+
+.playground__media-wall {
+  stroke: var(--calamus-fg);
+  stroke-width: 3;
+}
+
+.playground__media-window,
+.playground__media-gap {
+  stroke: color-mix(in srgb, var(--calamus-panel), #fff 60%);
+  stroke-width: 5;
+}
+
+.playground__media-door {
+  fill: color-mix(in srgb, var(--calamus-fg), transparent 78%);
+}
+
+.playground__media-lamp circle,
+.playground__media-glow {
+  fill: color-mix(in srgb, #f0e6b4, var(--calamus-accent) 24%);
+}
+
+.playground__media-shadow {
+  fill: color-mix(in srgb, var(--calamus-fg), transparent 62%);
+}
+
+.playground__media-person circle,
+.playground__media-crate rect,
+.playground__media-travel rect {
+  fill: var(--calamus-fg);
+}
+
+.playground__media-camera {
+  fill: var(--calamus-accent);
+}
+
+.playground__media-beam {
+  fill: color-mix(in srgb, #f0e6b4, transparent 68%);
+}
+
+.playground__media-crate .playground__media-odd {
+  fill: var(--calamus-accent);
+}
+
+/* The mark an editor leaves on a plate: a ring and a word, never a colour alone. */
+.playground__media-mark circle,
+.playground__media-mark ellipse,
+.playground__media-mark path {
+  fill: none;
+  stroke: var(--calamus-accent);
+  stroke-width: 1.6;
+  stroke-dasharray: 5 3;
+}
+
+.playground__media-mark text {
+  fill: var(--calamus-accent);
+  font-family: var(--calamus-mono-font);
+  font-size: 11px;
+}
+
+.playground__media-caption {
+  font-family: var(--calamus-serif-font);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.playground__media-note:empty,
+.playground__media-caption:empty {
+  display: none;
+}
+
+.playground__media-note {
+  font-size: 0.86rem;
+  line-height: 1.6;
+  padding: 0.6rem 0.75rem;
+  border: 1px dashed var(--calamus-accent);
+  border-radius: 8px;
+}
+
+/* Paired plates */
+
+.playground__media-pair {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 30rem) {
+  .playground__media-pair {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.playground__media-cell {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+}
+
+.playground__media-cell-label,
+.playground__media-readout,
+.playground__media-timecode {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.76rem;
+  color: var(--calamus-muted);
+}
+
+.playground__media-timecode {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Controls */
+
+.playground__gallery .playground__media-case button[aria-pressed="true"] {
+  border-color: var(--calamus-accent);
+  background: color-mix(in srgb, var(--calamus-accent), transparent 82%);
+  font-weight: 600;
+}
+
+.playground__media-range {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--calamus-muted);
+}
+
+.playground__media-range input[type="range"] {
+  flex: 1 1 8rem;
+  max-width: 14rem;
+  accent-color: var(--calamus-accent);
+}
+
+/* The library's focus ring reaches these too; it is restated so a copied
+   example keeps a visible focus without the explorer's stylesheet. */
+.playground__media-case :focus-visible {
+  outline: 2px solid var(--calamus-accent);
+  outline-offset: 2px;
+}
+
+.playground__media-layers,
+.playground__media-claims {
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.playground__media-layers li,
+.playground__media-claims li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  line-height: 1.55;
+}
+
+.playground__media-claims li[aria-current] {
+  font-weight: 600;
+}
+
+.playground__media-claims li[aria-current] span::after {
+  content: " — reading now";
+  font-family: var(--calamus-mono-font);
+  font-size: 0.74rem;
+  font-weight: 400;
+  color: var(--calamus-accent);
+}
+
+/* Motion, scrubbed rather than played: both animations are paused, and the
+   frame shown is the one at `--t` seconds, set by the component. */
+.playground__media-travel,
+.playground__media-flare {
+  animation-duration: 12s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-delay: calc(var(--t, 0) * -1s);
+  animation-play-state: paused;
+}
+
+.playground__media-travel {
+  animation-name: playground-media-travel;
+}
+
+.playground__media-flare {
+  animation-name: playground-media-flare;
+  fill: color-mix(in srgb, #f0e6b4, var(--calamus-accent) 16%);
+}
+
+@keyframes playground-media-travel {
+  from {
+    transform: translateX(0);
+  }
+
+  /* The pause the third claim is about, held from 00:08.4 to 00:09.6. */
+  70%,
+  80% {
+    transform: translateX(162px);
+  }
+
+  to {
+    transform: translateX(232px);
+  }
+}
+
+@keyframes playground-media-flare {
+  0%,
+  38% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  62%,
+  100% {
+    opacity: 0;
+  }
+}
