@@ -27,6 +27,7 @@ names:
   broken:
     over: chosen
     by: claim
+    answer: holds
     test: split
   holding: count(chosen)
   clashes: count(broken)

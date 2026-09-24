@@ -190,7 +190,7 @@ function parseCall(state: State): Expression {
   if (trailing !== "") {
     state.diagnostics.push({
       severity: "warning",
-      message: `\`${raw}${trailing}\` reads a field off a call, which \`Expression\` has no shape for; kept as its own source text.`,
+      message: `\`${raw}${trailing}\` reads a field off a call. A \`Path\` is names joined by dots and never an expression, and the format already says this in two names — the call declared under \`names:\`, then the field read off that name. Kept as its own source text.`,
       line: state.line,
     });
     return { kind: "read", path: raw + trailing };

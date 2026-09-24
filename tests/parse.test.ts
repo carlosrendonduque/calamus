@@ -738,7 +738,7 @@ describe("groups, names, phrases and variables", () => {
     expect(diagnostics).toEqual([]);
     expect(read.opens).toEqual({
       readings: 2,
-      logs: { chosen: [{ door: "north", id: "0" }], readings: 2 },
+      logs: { chosen: [{ door: "north" }], readings: 2 },
       variables: { note: "Una línea de antes." },
     });
   });
@@ -829,7 +829,7 @@ describe("the islands the format opens", () => {
     ]);
   });
 
-  it("keeps the label of a control whose gesture the contract cannot carry", () => {
+  it("keeps the label of a control whose gesture `Move` cannot carry", () => {
     const { document: read, diagnostics } = document(
       "---",
       "title: T",
@@ -837,13 +837,14 @@ describe("the islands the format opens", () => {
       "",
       "```calamus",
       "controls:",
-      "  - resets: book",
-      "    label: Close the book",
+      "  - move: { removes: chain }",
+      "    label: Back up one note",
       "```",
     );
     expect(errorsOf(diagnostics)).toEqual([]);
-    expect(read.body).toEqual([{ kind: "affordance", action: "do", target: "", label: "Close the book" }]);
+    expect(read.body).toEqual([{ kind: "affordance", action: "do", target: "", label: "Back up one note" }]);
     expect(warningsOf(diagnostics)).toHaveLength(1);
+    expect(warningsOf(diagnostics)[0].message).toContain("removes");
   });
 });
 
@@ -879,5 +880,206 @@ describe("an affordance standing on its own", () => {
     expect(diagnostics).toEqual([]);
     const paragraph = paragraphs(read.body)[0];
     expect(paragraph.content[1]).toEqual({ kind: "affordance", action: "show", target: "note-3", focus: true, children: [] });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The second catch-up: what the contract gained after the first pass          */
+/* -------------------------------------------------------------------------- */
+
+describe("a variable the reader can move", () => {
+  it("reads where the control sits, its step and its rows", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "variables:",
+      "  note:",
+      "    type: string",
+      '    default: ""',
+      "    control: text",
+      "    control-at: panel",
+      "    label: A line for your next visit",
+      "    rows: 3",
+      "  gutter:",
+      "    type: number",
+      "    default: 28",
+      "    control: range",
+      "    step: 2",
+      "---",
+      "",
+      "P.",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.variables.note).toMatchObject({ placement: "panel", rows: 3, label: "A line for your next visit" });
+    expect(read.variables.gutter.step).toBe(2);
+  });
+
+  it("reads `control-label` as the one label a control has", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "variables:",
+      "  cols: { type: number, default: 2, control: choice, control-label: Column count }",
+      "---",
+      "",
+      "P.",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.variables.cols.label).toBe("Column count");
+  });
+
+  it("tells the options themselves from the group they come from", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "variables:",
+      "  cols: { type: enum, of: [1, 2, 3], default: 2 }",
+      "  lens: { type: enum, of: lenses, default: haunting }",
+      "---",
+      "",
+      "P.",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.variables.cols.of).toEqual([1, 2, 3]);
+    expect(read.variables.cols.optionsFrom).toBeUndefined();
+    expect(read.variables.lens.optionsFrom).toBe("lenses");
+    expect(read.variables.lens.of).toBeUndefined();
+  });
+
+  it("reads a label per option, and says so when there is one clause for all", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "variables:",
+      "  lens:",
+      "    type: enum",
+      "    of: [haunting, grief]",
+      "    default: haunting",
+      "    option-label: { haunting: as haunting, grief: as grief }",
+      "  voice:",
+      "    type: enum",
+      "    of: voices",
+      "    default: surveyor",
+      '    option-label: "{item.who}"',
+      "---",
+      "",
+      "P.",
+    );
+    expect(errorsOf(diagnostics)).toEqual([]);
+    expect(read.variables.lens.optionLabels).toEqual({ haunting: "as haunting", grief: "as grief" });
+    expect(read.variables.voice.optionLabels).toBeUndefined();
+    expect(warningsOf(diagnostics)).toHaveLength(1);
+    expect(warningsOf(diagnostics)[0].message).toContain("{item.who}");
+  });
+});
+
+describe("what a loop and a region carry", () => {
+  it("gives an `each` island its heading, its label and the attributes of a paragraph", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "---",
+      "",
+      "```calamus",
+      "each: points",
+      "heading: Transcript of the call",
+      "label: Transcript of the call",
+      "live: polite",
+      "id: column-one",
+      "```",
+      "",
+      "{item.transcript}",
+      "",
+      "```calamus",
+      "end",
+      "```",
+    );
+    expect(diagnostics).toEqual([]);
+    const each = read.body[0] as Extract<Block, { kind: "each" }>;
+    expect(each.heading).toBe("Transcript of the call");
+    expect(each.label).toBe("Transcript of the call");
+    expect(each.attrs).toEqual({ live: "polite", id: "column-one" });
+  });
+
+  it("gives a region island the attributes of a paragraph, its own id apart", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "---",
+      "",
+      "```calamus",
+      "region: quotation",
+      'voice: "{speaking.id}"',
+      "live: polite",
+      "```",
+      "",
+      "La cita.",
+      "",
+      "```calamus",
+      "end",
+      "```",
+    );
+    expect(diagnostics).toEqual([]);
+    const region = read.body[0] as Extract<Block, { kind: "region" }>;
+    expect(region.id).toBe("quotation");
+    expect(region.attrs).toEqual({ voice: "{speaking.id}", live: "polite" });
+  });
+});
+
+describe("a gesture spelled out where the control stands", () => {
+  const controls = (...island: string[]) =>
+    document("---", "title: T", "---", "", "```calamus", "controls:", ...island, "```");
+
+  it("reads a reset, a set and a log grown by one entry", () => {
+    const { document: read, diagnostics } = controls(
+      "  - resets: book",
+      "    label: Close the book",
+      '  - sets: { open: "" }',
+      "    label: Shut the envelope",
+      "  - logs: { readings: {} }",
+      "    label: Read it again",
+    );
+    expect(diagnostics).toEqual([]);
+    const gestures = (read.body as Extract<Block, { kind: "affordance" }>[]).map((block) => block.gesture);
+    expect(gestures).toEqual([
+      [{ kind: "reset", names: ["book"] }],
+      [{ kind: "set", name: "open", value: "" }],
+      [{ kind: "add", log: "readings", item: {} }],
+    ]);
+  });
+
+  it("reads a mark on an entry of a log, named by the entry it marks", () => {
+    const { document: read, diagnostics } = controls(
+      "  - mark: { log: book, entry: here, field: struck }",
+      "    label: Withdraw the last line",
+      '    when: "standing > 0"',
+    );
+    expect(diagnostics).toEqual([]);
+    const control = read.body[0] as Extract<Block, { kind: "affordance" }>;
+    expect(control.gesture).toEqual([{ kind: "mark", log: "book", at: "here", field: "struck" }]);
+    expect(control.label).toBe("Withdraw the last line");
+    expect(control.when).toBeDefined();
+  });
+
+  it("keeps a declared move as the target and spells nothing out", () => {
+    const { document: read, diagnostics } = controls("  - move: turn-to-next", "    label: Open the next sheet");
+    expect(diagnostics).toEqual([]);
+    expect(read.body[0]).toEqual({
+      kind: "affordance",
+      action: "do",
+      target: "turn-to-next",
+      label: "Open the next sheet",
+    });
+  });
+
+  it("reads a `move:` whose value is the gesture itself", () => {
+    const { document: read, diagnostics } = controls(
+      '  - move: { sets: { open: "" } }',
+      "    label: Shut it",
+    );
+    expect(diagnostics).toEqual([]);
+    const control = read.body[0] as Extract<Block, { kind: "affordance" }>;
+    expect(control.target).toBe("");
+    expect(control.gesture).toEqual([{ kind: "set", name: "open", value: "" }]);
   });
 });

@@ -23,6 +23,7 @@ import type {
   GroupItem,
   Inline,
   NameDef,
+  Move,
   NarrativeDocument,
   NodeDef,
   Opens,
@@ -304,15 +305,11 @@ function readVariable(name: string, node: YamlNode, context: Context): VariableD
   const max = scalar(entry(node, "max"));
   if (typeof max === "number") variable.max = max;
 
+  // `of:` is either the options themselves or the group they come from.
   const of = entry(node, "of");
   if (of !== null) {
     if (of.kind === "seq") variable.of = of.items.map((item) => scalar(item) ?? "");
-    else
-      context.diagnostics.push({
-        severity: "warning",
-        message: `\`of: ${text(of)}\` on \`${name}\` names a group, and \`VariableDef.of\` holds a list of values; it was dropped.`,
-        line: of.line,
-      });
+    else variable.optionsFrom = text(of) ?? "";
   }
 
   const control = text(entry(node, "control"));
@@ -329,18 +326,53 @@ function readVariable(name: string, node: YamlNode, context: Context): VariableD
   const unit = text(entry(node, "unit"));
   if (unit !== null) variable.unit = unit;
   // The label of a control is prose someone reads, so it belongs to the document.
-  const label = text(entry(node, "label"));
+  // The contract holds one label for a control and the corpus writes it two
+  // ways; both name the same thing, and neither document writes both.
+  const label = text(entry(node, "label")) ?? text(entry(node, "control-label"));
   if (label !== null) variable.label = label;
+  // Where the control sits, and how its steps and rows are drawn.
+  const placement = text(entry(node, "control-at"));
+  if (placement !== null) variable.placement = placement;
+  const step = scalar(entry(node, "step"));
+  if (typeof step === "number") variable.step = step;
+  const rows = scalar(entry(node, "rows"));
+  if (typeof rows === "number") variable.rows = rows;
+
+  const optionLabels = entry(node, "option-label");
+  if (optionLabels !== null) {
+    const perOption = labelsPerOption(optionLabels);
+    if (perOption) variable.optionLabels = perOption;
+    else
+      context.diagnostics.push({
+        severity: "warning",
+        message: `The option label of \`${name}\` is one clause read in the scope of each option${text(optionLabels) === null ? "" : ` (\`${text(optionLabels)}\`)`}, and \`VariableDef.optionLabels\` holds one label per option; it was dropped.`,
+        line: optionLabels.line,
+      });
+  }
+
   const persist = scalar(entry(node, "persist"));
   if (typeof persist === "boolean") variable.persist = persist;
 
   noteUnusedKeys(
     node,
-    ["type", "default", "min", "max", "of", "control", "unit", "label", "persist"],
+    ["type", "default", "min", "max", "of", "control", "unit", "label", "control-label",
+     "control-at", "step", "rows", "option-label", "persist"],
     `the variable \`${name}\``,
     context
   );
   return variable;
+}
+
+/** One label per option, which is the only shape the contract holds. */
+function labelsPerOption(node: YamlNode): Record<string, string> | null {
+  if (node.kind !== "map" || node.entries.length === 0) return null;
+  const labels: Record<string, string> = {};
+  for (const option of node.entries) {
+    const said = text(option.value);
+    if (said === null) return null;
+    labels[option.key] = said;
+  }
+  return labels;
 }
 
 function emptyValue(type: VariableDef["type"]): Scalar | Scalar[] {
@@ -432,7 +464,7 @@ function readGroup(name: string, node: YamlNode, context: Context): GroupDef {
     if (synthesised > 0) {
       context.diagnostics.push({
         severity: "warning",
-        message: `${synthesised} item${synthesised === 1 ? "" : "s"} of \`${name}\` have no \`id\`, which \`GroupItem\` requires; their position was used.`,
+        message: `${synthesised} item${synthesised === 1 ? "" : "s"} of \`${name}\` have no \`id\`, and a declared item names itself; their position was used.`,
         line: declaredItems.line,
       });
     }
@@ -634,16 +666,15 @@ function readOpens(node: YamlNode, context: Context): Opens {
         seeded[declaration.key] = howMany;
         continue;
       }
-      seeded[declaration.key] = items(declaration.value).map((item, index) => {
+      seeded[declaration.key] = items(declaration.value).map((item) => {
         const fields: Record<string, Scalar> = {};
         for (const field of item.kind === "map" ? item.entries : []) {
           const value = scalar(field.value);
           if (value !== null) fields[field.key] = value;
         }
-        // The id of a log entry is born when the entry is written, so a seeded
-        // one is given its position and nothing is said about it.
-        const id = typeof fields.id === "string" ? fields.id : String(fields.id ?? index);
-        return { ...fields, id } as GroupItem;
+        // A log entry has no name until it is written, so a seeded one is left
+        // without an id and the runtime supplies its position.
+        return fields as GroupItem;
       });
     }
     opens.logs = seeded;
@@ -909,7 +940,7 @@ function readIsland(content: string, firstLine: number, raw: string, context: Co
 
   if (first === "each") {
     const spec = groupSpec(text(entry(node, "each")) ?? "", node.line, context);
-    noteUnusedKeys(node, ["each", "order", "empty"], "an `each` island", context);
+    noteUnusedKeys(node, ["each", "order", "empty", "heading", "label", ...BLOCK_ATTRIBUTES], "an `each` island", context);
     const block: Block & { body: Block[] } = { kind: "each", group: spec.group, body: [] };
     if (spec.where) block.where = spec.where;
     // The order of what a group prints is structure, not presentation, so the
@@ -923,6 +954,14 @@ function readIsland(content: string, firstLine: number, raw: string, context: Co
     // usually the moment the piece says something. Losing it loses prose.
     const empty = entry(node, "empty");
     if (empty !== null) block.empty = readBlocks(text(empty) ?? "", empty.line, context);
+    // A loop carries what a paragraph carries, and its heading and its label are
+    // prose: "Your route so far", "Transcript of the call".
+    const attrs = islandAttrs(node, [], context);
+    if (attrs) block.attrs = attrs;
+    const heading = text(entry(node, "heading"));
+    if (heading !== null) block.heading = heading;
+    const label = text(entry(node, "label"));
+    if (label !== null) block.label = label;
     return { kind: "open", block, opener: "each" };
   }
 
@@ -930,9 +969,14 @@ function readIsland(content: string, firstLine: number, raw: string, context: Co
   // instead of replacing (formato.md §7). `block:` and `pair:` are the older
   // spellings the corpus writes and are read as the same thing.
   if (first === "region" || first === "block" || first === "pair") {
+    // `id:` names the region itself here, which is what a region is for, so it
+    // is the one paragraph attribute an island of this kind spends on itself.
     const id = text(entry(node, "id")) ?? text(entry(node, first)) ?? "";
-    noteUnusedKeys(node, [first, "id"], `a \`${first}\` island`, context);
-    return { kind: "open", block: { kind: "region", id, body: [] }, opener: first };
+    noteUnusedKeys(node, [first, "id", ...BLOCK_ATTRIBUTES], `a \`${first}\` island`, context);
+    const region: Block & { body: Block[] } = { kind: "region", id, body: [] };
+    const attrs = islandAttrs(node, ["id"], context);
+    if (attrs) region.attrs = attrs;
+    return { kind: "open", block: region, opener: first };
   }
 
   if (first === "controls") {
@@ -1021,7 +1065,7 @@ function readControls(node: YamlNode | null, context: Context): Block[] {
     }
     const navigates = text(entry(item, "to"));
     const reveals = text(entry(item, "show"));
-    const moves = text(entry(item, "move"));
+    const named = entry(item, "move");
     let action: "go" | "show" | "do" = "do";
     let target = "";
     if (navigates !== null) {
@@ -1030,25 +1074,123 @@ function readControls(node: YamlNode | null, context: Context): Block[] {
     } else if (reveals !== null) {
       action = "show";
       target = reveals;
-    } else if (moves !== null) {
-      target = moves;
-    } else {
-      spelledOut += 1;
-      for (const key of keysOf(item)) if (key !== "label" && key !== "when") unspeakable.add(key);
+    } else if (named !== null && text(named) !== null) {
+      target = text(named) ?? "";
     }
     const control: Block = { kind: "affordance", action, target, label: label ?? "" };
     const when = text(entry(item, "when"));
     if (when !== null) control.when = parseExpression(when, item.line, context.diagnostics);
+    // A gesture spelled out at the call site rather than declared, which seven
+    // of the eight controls in the corpus do.
+    const spelled = readGestureMoves(item, context);
+    // A `move:` whose value is a map is the gesture itself, not a name.
+    const inner = readGestureMoves(named !== null && named.kind === "map" ? named : null, context);
+    const gesture = [...spelled.moves, ...inner.moves];
+    const unreadable = [...spelled.unreadable, ...inner.unreadable];
+    if (gesture.length > 0) control.gesture = gesture;
+    if (unreadable.length > 0) {
+      spelledOut += 1;
+      for (const key of unreadable) unspeakable.add(key);
+    }
     blocks.push(control);
   }
   if (spelledOut > 0) {
     context.diagnostics.push({
       severity: "warning",
-      message: `${spelledOut} control${spelledOut === 1 ? "" : "s"} spell${spelledOut === 1 ? "s" : ""} the gesture out on the control itself (\`${[...unspeakable].join("`, `")}\`), and \`Block.affordance\` holds one target; the labels and the conditions were kept and the gestures were not.`,
+      message: `${spelledOut} control${spelledOut === 1 ? "" : "s"} spell${spelledOut === 1 ? "s" : ""} a gesture (\`${[...unspeakable].join("`, `")}\`) that \`Move\` has no shape for; the labels and the conditions were kept and those gestures were not.`,
       line: node.line,
     });
   }
   return blocks;
+}
+
+/**
+ * The gestures written where a control stands, read into the `Move`s the
+ * contract holds. Everything here is a schema key: what is written, where, and
+ * which entry of it — never a name the author chose.
+ */
+function readGestureMoves(node: YamlNode | null, context: Context): { moves: Move[]; unreadable: string[] } {
+  const moves: Move[] = [];
+  const unreadable: string[] = [];
+  if (node === null || node.kind !== "map") return { moves, unreadable };
+  for (const gesture of node.entries) {
+    switch (gesture.key) {
+      case "label":
+      case "when":
+      case "to":
+      case "show":
+      case "move":
+        break;
+      case "sets":
+        for (const written of gesture.value.kind === "map" ? gesture.value.entries : []) {
+          moves.push({
+            kind: "set",
+            name: written.key,
+            value:
+              written.value.kind === "seq"
+                ? written.value.items.map((one) => scalar(one) ?? "")
+                : scalar(written.value) ?? "",
+          });
+        }
+        break;
+      case "logs":
+        for (const grown of gesture.value.kind === "map" ? gesture.value.entries : []) {
+          const written: Record<string, Scalar> = {};
+          for (const field of grown.value.kind === "map" ? grown.value.entries : []) {
+            const value = scalar(field.value);
+            if (value !== null) written[field.key] = value;
+          }
+          moves.push({ kind: "add", log: grown.key, item: written as GroupItem });
+        }
+        break;
+      case "resets": {
+        const names = gesture.value.kind === "map" ? null : items(gesture.value).map((one) => text(one) ?? "");
+        // A reset returns a name to the value it opened on; returning it to some
+        // other literal value is a different gesture, and `Move` has only one.
+        if (names === null) unreadable.push(gesture.key);
+        else moves.push({ kind: "reset", names });
+        break;
+      }
+      case "mark": {
+        const log = text(entry(gesture.value, "log"));
+        const at = scalar(entry(gesture.value, "at")) ?? scalar(entry(gesture.value, "entry"));
+        const field = text(entry(gesture.value, "field"));
+        if (log === null || field === null || (typeof at !== "string" && typeof at !== "number")) {
+          unreadable.push(gesture.key);
+          break;
+        }
+        moves.push({ kind: "mark", log, at, field });
+        break;
+      }
+      default:
+        unreadable.push(gesture.key);
+    }
+  }
+  return { moves, unreadable };
+}
+
+/** The paragraph attributes an island writes as keys rather than as a `:with`. */
+function islandAttrs(node: YamlNode, except: string[], context: Context): BlockAttrs | undefined {
+  const attrs: BlockAttrs = {};
+  for (const key of keysOf(node)) {
+    if (except.includes(key) || !BLOCK_ATTRIBUTES.includes(key)) continue;
+    const value = entry(node, key);
+    const said = text(value);
+    if (value === null || said === null) continue;
+    if (key === "when") attrs.when = parseExpression(said, value.line, context.diagnostics);
+    else if (key === "weight") {
+      const weight = Number(said);
+      if (Number.isFinite(weight)) attrs.weight = weight;
+      else
+        context.diagnostics.push({
+          severity: "warning",
+          message: `\`weight: ${said}\` names a kind of block, and \`BlockAttrs.weight\` holds a number; it was dropped.`,
+          line: value.line,
+        });
+    } else if (key === "live") attrs.live = said === "true" ? true : said === "false" ? false : said;
+    else attrs[key as "id" | "voice" | "lang" | "mark" | "role"] = said;
+  }
+  return Object.keys(attrs).length > 0 ? attrs : undefined;
 }
 
 /** Prose standing inside an island value: one block per paragraph of it. */

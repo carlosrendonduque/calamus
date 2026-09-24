@@ -169,7 +169,13 @@ describe("contradiction: grouped before it is quantified", () => {
   const { document } = read("contradiction.md");
 
   it("reads `by` and `test` as operators over the author's own field", () => {
-    expect(document.names.broken).toEqual({ kind: "grouped", over: "chosen", by: "claim", test: "split" });
+    expect(document.names.broken).toEqual({
+      kind: "grouped",
+      over: "chosen",
+      by: "claim",
+      answer: "holds",
+      test: "split",
+    });
   });
 
   it("keeps the held log unique and removable by identity", () => {

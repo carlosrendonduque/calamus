@@ -145,8 +145,11 @@ export type VariableDef = {
   placement?: string;
   step?: number;
   rows?: number;
-  /** Prose again: an option's label is read, so it may be a phrase name. */
-  optionLabels?: Record<string, string>;
+  /** An option's label is prose. Either one label per option, or — which is what
+   *  every document that takes its options from a group actually writes — a
+   *  single clause read with the option bound, exactly as `PhraseDef.of` does.
+   *  A per-option map cannot label each option with its own field. */
+  optionLabels?: Record<string, string> | string;
   /** The options are the items of a group the author declared. */
   optionsFrom?: string;
   persist?: boolean;
@@ -169,6 +172,10 @@ export type Inline =
       target: string;
       focus?: boolean;
       when?: Expression;
+      /** An argument to the move, so one move serves many spans. */
+      item?: string;
+      /** The span being left, so a return knows where to put the focus back. */
+      id?: string;
       children: Inline[];
     }
   /** `:slot[...]{name=...}` — inline registry view. */
@@ -209,6 +216,10 @@ export type Block =
       attrs?: BlockAttrs;
       heading?: string;
       label?: string;
+      /** What the loop is presented as: a list, an apparatus, a column. */
+      as?: string;
+      /** Which item the reader is on. A value, not a name, so it is read. */
+      current?: Expression;
       body: Block[];
     }
   /** A named region, revealed in place. Distinct from a node, which replaces. */
@@ -319,9 +330,13 @@ export type Move =
   | { kind: "back" }
   | { kind: "set"; name: string; value: Scalar | Scalar[] }
   | { kind: "add"; log: string; item: GroupItem }
-  | { kind: "remove"; log: string; at: number | string }
+  /** `at` is optional: a log whose discipline is `removes: last` already says
+   *  which entry goes, and asking the author to repeat it invites disagreement. */
+  | { kind: "remove"; log: string; at?: number | string }
   | { kind: "mark"; log: string; at: number | string; field: string }
-  | { kind: "reset"; names: string[] };
+  /** A reset returns a name to its opening value, or to a value the author
+   *  states — one document wants neither the opening two readings nor none. */
+  | { kind: "reset"; names: string[]; to?: Record<string, Scalar | Scalar[]> };
 
 /* -------------------------------------------------------------------------- */
 /* Registry — five namespaces, because two of fourteen are not components      */
