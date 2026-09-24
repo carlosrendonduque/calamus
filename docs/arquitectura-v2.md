@@ -381,7 +381,13 @@ solo opt-in y acotada.
    parcheó en `playground/`, así que **sigue viva para quien consuma la librería** y el arreglo
    está donde puede desincronizarse.
 
-## 10. Decisiones abiertas
+## 10. Decisiones
+
+**A, B, D y E quedaron decididas el 2026-09-24** y están registradas como decisiones 22 a 25 en
+`decisiones.md`, con su razonamiento completo. Las cuatro fueron hacia el diseño más ambicioso:
+un solo contrato, la navegación en el documento, paginación híbrida y un compilador.
+
+Lo que sigue abierto
 
 | # | Decisión | Recomendación |
 |---|---|---|
