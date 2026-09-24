@@ -25,10 +25,13 @@ export type ReaderTheme = Partial<{
   serifFontFamily: string;
   monoFontFamily: string;
   /**
-   * Height of the reading surface. Default: a `min(78vh, 860px)` cap. Set it to
-   * `"100%"` inside a host element with an explicit height and the reader fills
-   * that box, so `book` and `editorial` paginate to it. Against a host of
-   * automatic height `"100%"` resolves to `auto`, which leaves the reader uncapped.
+   * Height of the reading surface. Default: `min(78vh, 860px)` — a cap in
+   * `scroll` and `terminal`, which hug shorter text, and the height of the frame
+   * in `book` and `editorial`, which are fixed pages and do not shrink to their
+   * own pagination. Set it to `"100%"` inside a host element with an explicit
+   * height and the reader fills that box, so `book` and `editorial` paginate to
+   * it. Against a host of automatic height `"100%"` resolves to `auto`, which
+   * leaves the reader uncapped.
    */
   maxHeight: string;
 }>;

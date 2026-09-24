@@ -218,6 +218,8 @@
   padding: 1.6rem;
   display: flex;
   flex-direction: column;
+  /* Sheets are pages: same fixed frame, same reason. */
+  height: var(--calamus-max-height, min(78vh, 860px));
 }
 
 .calamus--editorial:focus-visible {
@@ -396,6 +398,11 @@
   padding: 0.9rem;
   display: flex;
   flex-direction: column;
+  /* A page is a frame the text is poured into, not a box that hugs the page it
+     just paginated. With only a cap here, every measurement shrank the box the
+     next one measured, and the chapter walked itself down to one paragraph per
+     page. The page below fills this height instead. */
+  height: var(--calamus-max-height, min(78vh, 860px));
   background: var(--calamus-bg);
   background: color-mix(in srgb, var(--calamus-bg), #000 4%);
 }

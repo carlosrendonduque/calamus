@@ -31,6 +31,10 @@ Work preparing the library for its first public release.
   real writing without the library carrying content of its own.
 - `labels` prop (`ReaderLabels`) overriding every user-facing string, so the reader can be
   rendered in any language. Replaces the single `readingTimeLabel` prop.
+- `maxHeight` key on `ReaderTheme`, mapped to `--calamus-max-height`. The reading surface used
+  to size itself against the viewport and nothing else, so the library could not be placed in a
+  card, a column or a split pane. Set it to `"100%"` inside a host element with a definite
+  height and `book` and `editorial` paginate to that box, and re-paginate when it resizes.
 - `lang` prop, forwarded to the root element, so non-English text is announced and hyphenated
   correctly.
 - Eight more `ReaderLabels` keys covering every accessible name: `readingMode`, `progress`,
@@ -69,6 +73,15 @@ Work preparing the library for its first public release.
   is now called only for keys the reader actually handles, so the rest pass through.
 - `paginateEditorialParagraphs` no longer throws on a `columnCount` below 1, fractional, `NaN`
   or `Infinity`; it floors to a minimum of one column.
+- **`book` and `editorial` no longer collapse.** Both now render at a fixed height —
+  `min(78vh, 860px)` by default, or whatever `theme.maxHeight` says — instead of shrinking to
+  fit the pagination they had just produced. That was a feedback loop: the frame hugged the
+  page it had just laid out, so the next measurement saw a smaller box and laid out less.
+  Sterne's chapter went to ten pages of one paragraph each; it now fills four. `editorial` had
+  the same pathology in both directions, settling at 363px against a 780px cap for one text and
+  overflowing the viewport at 962px for another. Short texts now show a full frame with space
+  below the text, which is what a page looks like; set `theme.maxHeight` for a smaller one.
+  `scroll`, `terminal` and `hypertext` are unaffected — they have no page metaphor to keep.
 - The published demo was rendering unstyled. `sideEffects` lets bundlers prune the stylesheet
   import inside `src/index.ts`, so the playground now imports the stylesheet explicitly, the
   way a host project has to. This is a demo fix; consuming the library was always documented as
