@@ -5,6 +5,8 @@ import { EditorialReader } from "./modes/EditorialReader";
 import { HypertextReader } from "./modes/HypertextReader";
 import { paginateParagraphs } from "./internal/pagination";
 import { getReadingTimeText } from "./internal/readingTime";
+import { mergeLabels } from "./internal/labels";
+import { applyScrollAction, getPageAction, getScrollAction } from "./internal/keys";
 
 const THEME_TO_VAR: Record<keyof ReaderTheme, string> = {
   background: "--calamus-bg",
@@ -21,12 +23,6 @@ const THEME_TO_VAR: Record<keyof ReaderTheme, string> = {
   terminalBorder: "--calamus-terminal-border",
   serifFontFamily: "--calamus-serif-font",
   monoFontFamily: "--calamus-mono-font"
-};
-
-const DEFAULT_LABELS: Required<ReaderLabels> = {
-  page: (current, total) => `Page ${current} of ${total}`,
-  sheet: (current, total) => `Sheet ${current} of ${total}`,
-  readingTime: "min read"
 };
 
 function themeToCssVars(theme?: ReaderTheme): CSSProperties {
@@ -51,7 +47,7 @@ function renderParagraphs(body: string[]) {
   ));
 }
 
-function TerminalMode({ content }: { content: ReaderContent }) {
+function TerminalMode({ content, labels }: { content: ReaderContent; labels: Required<ReaderLabels> }) {
   const sourceName = content.subtitle ?? "document.txt";
   const containerRef = useRef<HTMLElement | null>(null);
   const [progress, setProgress] = useState(0);
@@ -94,41 +90,22 @@ function TerminalMode({ content }: { content: ReaderContent }) {
       return;
     }
 
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      element.scrollBy({ top: 80, behavior: "smooth" });
+    const action = getScrollAction(event.key, event.shiftKey);
+    if (!action) {
       return;
     }
 
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      element.scrollBy({ top: -80, behavior: "smooth" });
-      return;
-    }
-
-    if (event.key === " ") {
-      event.preventDefault();
-      element.scrollBy({ top: element.clientHeight, behavior: "smooth" });
-      return;
-    }
-
-    if (event.key === "Home") {
-      event.preventDefault();
-      element.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-
-    if (event.key === "End") {
-      event.preventDefault();
-      element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
-    }
+    event.preventDefault();
+    applyScrollAction(element, action);
   };
+
+  const percent = Math.round(progress * 100);
 
   return (
     <section
       ref={containerRef}
       className="calamus calamus--terminal"
-      aria-label="Terminal reading mode"
+      aria-label={labels.readingMode("terminal")}
       tabIndex={0}
       onKeyDown={handleTerminalKeyDown}
     >
@@ -140,21 +117,25 @@ function TerminalMode({ content }: { content: ReaderContent }) {
         <div className="calamus__terminal-progress-line">
           <div
             className="calamus__terminal-progress-fill"
-            style={{ width: `${Math.round(progress * 100)}%` }}
+            style={{ width: `${percent}%` }}
           />
         </div>
-        <span className="calamus__terminal-progress-value">{`(${Math.round(progress * 100)}%)`}</span>
+        <span className="calamus__terminal-progress-value">{`(${percent}%)`}</span>
       </div>
+      {/* Text equivalent of the bar above, readable on demand rather than announced on every scroll. */}
+      <p className="calamus__sr-only">{labels.progress(percent)}</p>
     </section>
   );
 }
 
 function ScrollMode({
   content,
-  readingTimeText
+  readingTimeText,
+  labels
 }: {
   content: ReaderContent;
   readingTimeText: string;
+  labels: Required<ReaderLabels>;
 }) {
   const containerRef = useRef<HTMLElement | null>(null);
   const [progress, setProgress] = useState(0);
@@ -197,47 +178,28 @@ function ScrollMode({
       return;
     }
 
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      element.scrollBy({ top: 80, behavior: "smooth" });
+    const action = getScrollAction(event.key, event.shiftKey);
+    if (!action) {
       return;
     }
 
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      element.scrollBy({ top: -80, behavior: "smooth" });
-      return;
-    }
-
-    if (event.key === " ") {
-      event.preventDefault();
-      element.scrollBy({ top: element.clientHeight, behavior: "smooth" });
-      return;
-    }
-
-    if (event.key === "Home") {
-      event.preventDefault();
-      element.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-
-    if (event.key === "End") {
-      event.preventDefault();
-      element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
-    }
+    event.preventDefault();
+    applyScrollAction(element, action);
   };
 
   return (
     <article
       ref={containerRef}
       className="calamus calamus--scroll"
-      aria-label="Scroll reading mode"
+      aria-label={labels.readingMode("scroll")}
       tabIndex={0}
       onKeyDown={handleScrollKeyDown}
     >
       <div className="calamus__scroll-progress-track" aria-hidden="true">
         <div className="calamus__scroll-progress-fill" style={{ width: `${progress * 100}%` }} />
       </div>
+      {/* Text equivalent of the bar above, readable on demand rather than announced on every scroll. */}
+      <p className="calamus__sr-only">{labels.progress(Math.round(progress * 100))}</p>
       <header className="calamus__head">
         <p className="calamus__mode-label">reader --scroll</p>
         <h1 className="calamus__title">{content.title}</h1>
@@ -252,17 +214,18 @@ function ScrollMode({
 function BookMode({
   content,
   transition,
-  pageLabel
+  labels
 }: {
   content: ReaderContent;
   transition: ReaderTransition;
-  pageLabel: NonNullable<ReaderLabels["page"]>;
+  labels: Required<ReaderLabels>;
 }) {
   const bodyRef = useRef<HTMLElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
   const [pages, setPages] = useState<number[][]>([content.body.map((_, index) => index)]);
   const [currentPage, setCurrentPage] = useState(0);
   const [navDirection, setNavDirection] = useState<"forward" | "backward">("forward");
+  const [hasTurned, setHasTurned] = useState(false);
 
   useEffect(() => {
     const bodyElement = bodyRef.current;
@@ -325,49 +288,47 @@ function BookMode({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const touchCurrentRef = useRef<{ x: number; y: number } | null>(null);
 
-  const goPrevious = () => {
-    if (!canGoPrevious) {
+  const goToPage = (nextPage: number) => {
+    const target = Math.min(Math.max(0, nextPage), Math.max(0, totalPages - 1));
+
+    if (target === currentPage) {
       return;
     }
 
-    setNavDirection("backward");
-    setCurrentPage((page) => Math.max(0, page - 1));
+    setNavDirection(target > currentPage ? "forward" : "backward");
+    setCurrentPage(target);
+    // The live region stays empty until the reader turns a page, so mounting and
+    // re-pagination are silent and only real page turns are announced.
+    setHasTurned(true);
+  };
+
+  const goPrevious = () => {
+    goToPage(currentPage - 1);
   };
 
   const goNext = () => {
-    if (!canGoNext) {
-      return;
-    }
-
-    setNavDirection("forward");
-    setCurrentPage((page) => Math.min(totalPages - 1, page + 1));
+    goToPage(currentPage + 1);
   };
 
   const handleBookKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key === "ArrowLeft") {
-      event.preventDefault();
+    const action = getPageAction(event.key, event.shiftKey);
+    if (!action) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (action === "previous") {
       goPrevious();
       return;
     }
 
-    if (event.key === "ArrowRight" || event.key === " ") {
-      event.preventDefault();
+    if (action === "next") {
       goNext();
       return;
     }
 
-    if (event.key === "Home") {
-      event.preventDefault();
-      setNavDirection("backward");
-      setCurrentPage(0);
-      return;
-    }
-
-    if (event.key === "End") {
-      event.preventDefault();
-      setNavDirection("forward");
-      setCurrentPage(Math.max(0, totalPages - 1));
-    }
+    goToPage(action === "first" ? 0 : totalPages - 1);
   };
 
   const handleTouchStart = (event: TouchEvent<HTMLElement>) => {
@@ -417,10 +378,12 @@ function BookMode({
           : "calamus__book-page-content--slide-backward"
         : "calamus__book-page-content--fade";
 
+  const pageStatus = labels.page(currentPage + 1, totalPages);
+
   return (
     <section
       className="calamus calamus--book-frame"
-      aria-label="Book reading mode"
+      aria-label={labels.readingMode("book")}
       tabIndex={0}
       onKeyDown={handleBookKeyDown}
       onTouchStart={handleTouchStart}
@@ -446,23 +409,26 @@ function BookMode({
             {renderParagraphs(currentPageParagraphs)}
           </div>
         </article>
-        <div className="calamus__book-nav" aria-label="Book page navigation">
+        <div className="calamus__book-nav" role="group" aria-label={labels.pageNavigation}>
           <button
             type="button"
             className="calamus__book-nav-button"
             onClick={goPrevious}
             disabled={!canGoPrevious}
-            aria-label="Previous page"
+            aria-label={labels.previousPage}
           >
             ←
           </button>
-          <span className="calamus__book-nav-status">{pageLabel(currentPage + 1, totalPages)}</span>
+          <span className="calamus__book-nav-status">{pageStatus}</span>
+          <span className="calamus__sr-only" role="status" aria-live="polite">
+            {hasTurned ? pageStatus : ""}
+          </span>
           <button
             type="button"
             className="calamus__book-nav-button"
             onClick={goNext}
             disabled={!canGoNext}
-            aria-label="Next page"
+            aria-label={labels.nextPage}
           >
             →
           </button>
@@ -490,24 +456,29 @@ export function Reader({
   };
 
   const rootClassName = ["calamus-root", className].filter(Boolean).join(" ");
-  const readingTimeText = getReadingTimeText(content, labels?.readingTime ?? DEFAULT_LABELS.readingTime);
-  const pageLabel = labels?.page ?? DEFAULT_LABELS.page;
-  const sheetLabel = labels?.sheet ?? DEFAULT_LABELS.sheet;
+  const mergedLabels = mergeLabels(labels);
+  const readingTimeText = getReadingTimeText(content, mergedLabels.readingTime);
 
   return (
     <div className={rootClassName} style={mergedStyle} lang={lang}>
-      {mode === "terminal" ? <TerminalMode content={content} /> : null}
-      {mode === "scroll" ? <ScrollMode content={content} readingTimeText={readingTimeText} /> : null}
-      {mode === "book" ? <BookMode content={content} transition={transition} pageLabel={pageLabel} /> : null}
+      {mode === "terminal" ? <TerminalMode content={content} labels={mergedLabels} /> : null}
+      {mode === "scroll" ? (
+        <ScrollMode content={content} readingTimeText={readingTimeText} labels={mergedLabels} />
+      ) : null}
+      {mode === "book" ? <BookMode content={content} transition={transition} labels={mergedLabels} /> : null}
       {mode === "editorial" ? (
         <EditorialReader
           content={content}
           readingTimeText={readingTimeText}
           transition={transition}
-          sheetLabel={sheetLabel}
+          labels={mergedLabels}
         />
       ) : null}
-      {mode === "hypertext" ? <HypertextReader content={content}>{children}</HypertextReader> : null}
+      {mode === "hypertext" ? (
+        <HypertextReader content={content} labels={mergedLabels}>
+          {children}
+        </HypertextReader>
+      ) : null}
     </div>
   );
 }

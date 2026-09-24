@@ -43,19 +43,21 @@ export function paginateEditorialParagraphs(
   availableHeight: number,
   columnCount: number
 ): EditorialSheet[] {
-  const emptyColumns = (count: number): EditorialSheet => Array.from({ length: count }, () => []);
+  // A sheet always has at least one column, whatever the caller asks for.
+  const columns = Number.isFinite(columnCount) ? Math.max(1, Math.floor(columnCount)) : 1;
+  const emptyColumns = (): EditorialSheet => Array.from({ length: columns }, () => []);
 
   if (paragraphHeights.length === 0) {
-    return [emptyColumns(columnCount)];
+    return [emptyColumns()];
   }
 
   if (availableHeight <= 0) {
-    const trailingColumns = emptyColumns(columnCount).slice(1);
+    const trailingColumns = emptyColumns().slice(1);
     return [[paragraphHeights.map((_, index) => index), ...trailingColumns]];
   }
 
   const sheets: EditorialSheet[] = [];
-  let currentSheet: EditorialSheet = Array.from({ length: columnCount }, () => []);
+  let currentSheet: EditorialSheet = emptyColumns();
   let currentColumn = 0;
   let currentColumnHeight = 0;
 
@@ -68,7 +70,7 @@ export function paginateEditorialParagraphs(
       return;
     }
 
-    if (currentColumn < columnCount - 1) {
+    if (currentColumn < columns - 1) {
       currentColumn += 1;
       currentSheet[currentColumn].push(index);
       currentColumnHeight = height;
@@ -76,7 +78,7 @@ export function paginateEditorialParagraphs(
     }
 
     sheets.push(currentSheet);
-    currentSheet = Array.from({ length: columnCount }, () => []);
+    currentSheet = emptyColumns();
     currentColumn = 0;
     currentSheet[currentColumn].push(index);
     currentColumnHeight = height;

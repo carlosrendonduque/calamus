@@ -28,7 +28,9 @@ export type ReaderTheme = Partial<{
 
 /**
  * User-facing strings. Every reader label is overridable so the component can be
- * rendered in any language; the defaults are English.
+ * rendered in any language; the defaults are English. The accessible names are
+ * labels too: assistive technology reads them out, so they are as translatable
+ * as the visible text.
  */
 export type ReaderLabels = Partial<{
   /** Page counter in `book` mode. Default: `Page 2 of 5`. */
@@ -37,6 +39,22 @@ export type ReaderLabels = Partial<{
   sheet: (current: number, total: number) => string;
   /** Unit appended to the estimated reading time. Default: `min read`. */
   readingTime: string;
+  /** Accessible name of the reading region. Default: `Book reading mode`. */
+  readingMode: (mode: ReaderMode) => string;
+  /** Text equivalent of the progress bar in `scroll` and `terminal` modes. Default: `Reading progress: 40%`. */
+  progress: (percent: number) => string;
+  /** Accessible name of the page-turn control group in `book` mode. Default: `Book page navigation`. */
+  pageNavigation: string;
+  /** Accessible name of the sheet-turn control group in `editorial` mode. Default: `Editorial sheet navigation`. */
+  sheetNavigation: string;
+  /** Accessible name of the back button in `book` mode. Default: `Previous page`. */
+  previousPage: string;
+  /** Accessible name of the forward button in `book` mode. Default: `Next page`. */
+  nextPage: string;
+  /** Accessible name of the back button in `editorial` mode. Default: `Previous sheet`. */
+  previousSheet: string;
+  /** Accessible name of the forward button in `editorial` mode. Default: `Next sheet`. */
+  nextSheet: string;
 }>;
 
 export type ReaderProps = {

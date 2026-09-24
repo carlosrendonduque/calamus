@@ -160,8 +160,29 @@ describe("paginateEditorialParagraphs", () => {
     expect(flattenSheets(sheets)).toEqual(heights.map((_, index) => index));
   });
 
-  it("throws when asked for zero columns", () => {
-    // Documented current behaviour: columnCount is never validated.
-    expect(() => paginateEditorialParagraphs([100], 300, 0)).toThrow(TypeError);
+  it("falls back to a single column when asked for zero columns", () => {
+    expect(paginateEditorialParagraphs([100], 300, 0)).toEqual([[[0]]]);
+  });
+
+  it("falls back to a single column for a negative column count", () => {
+    expect(paginateEditorialParagraphs([30, 30, 40, 10], 100, -3)).toEqual([[[0, 1, 2]], [[3]]]);
+  });
+
+  it("falls back to a single column for a column count that is not a number", () => {
+    expect(paginateEditorialParagraphs([100], 300, Number.NaN)).toEqual([[[0]]]);
+    expect(paginateEditorialParagraphs([100], 300, Number.POSITIVE_INFINITY)).toEqual([[[0]]]);
+  });
+
+  it("truncates a fractional column count instead of overflowing the sheet", () => {
+    expect(paginateEditorialParagraphs([60, 60, 60], 100, 2.9)).toEqual([
+      [[0], [1]],
+      [[2], []]
+    ]);
+    expect(paginateEditorialParagraphs([60, 60], 100, 1.5)).toEqual([[[0]], [[1]]]);
+  });
+
+  it("keeps the guarded column count out of the empty-document and zero-height paths", () => {
+    expect(paginateEditorialParagraphs([], 600, 0)).toEqual([[[]]]);
+    expect(paginateEditorialParagraphs([120, 140], 0, 0)).toEqual([[[0, 1]]]);
   });
 });

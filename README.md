@@ -87,6 +87,16 @@ The defaults are English.
 | `page` | `(current: number, total: number) => string` | `` `Page ${current} of ${total}` `` | `book` |
 | `sheet` | `(current: number, total: number) => string` | `` `Sheet ${current} of ${total}` `` | `editorial` |
 | `readingTime` | `string` | `"min read"` | `scroll`, `editorial` |
+| `readingMode` | `(mode: ReaderMode) => string` | `` `Book reading mode` `` | all |
+| `progress` | `(percent: number) => string` | `` `Reading progress: 40%` `` | `scroll`, `terminal` |
+| `pageNavigation` | `string` | `"Book page navigation"` | `book` |
+| `sheetNavigation` | `string` | `"Editorial sheet navigation"` | `editorial` |
+| `previousPage` / `nextPage` | `string` | `"Previous page"` / `"Next page"` | `book` |
+| `previousSheet` / `nextSheet` | `string` | `"Previous sheet"` / `"Next sheet"` | `editorial` |
+
+The first three are visible text; the rest are accessible names, exposed only to assistive
+technology. Passing an override object does not blank the keys you leave out, and an explicit
+`undefined` is ignored rather than treated as an empty string.
 
 ```tsx
 <Reader
@@ -250,9 +260,10 @@ exists.
 
 ### Focus and roles
 
-Four of the five modes render their root as a focusable region (`tabIndex={0}`) with an
-`aria-label`, and have a `:focus-visible` outline drawn from `--calamus-accent` (or
-`--calamus-terminal-muted` in `terminal`):
+All five modes render their root as a focusable region (`tabIndex={0}`) with an accessible
+name, and have a `:focus-visible` outline drawn from `--calamus-accent` (or
+`--calamus-terminal-muted` in `terminal`). Every name below is the default from
+`labels.readingMode` and is overridable:
 
 | Mode | Element | `aria-label` | Focusable |
 | --- | --- | --- | --- |
@@ -260,7 +271,7 @@ Four of the five modes render their root as a focusable region (`tabIndex={0}`) 
 | `book` | `<section>` | `Book reading mode` | yes |
 | `terminal` | `<section>` | `Terminal reading mode` | yes |
 | `editorial` | `<section>` | `Editorial reading mode` | yes |
-| `hypertext` | `<section>` | `Hypertext reading mode` | **no** |
+| `hypertext` | `<section>` | `Hypertext reading mode` | yes |
 
 Keyboard navigation requires that region to have focus, so a keyboard reader tabs to the
 reader first and then drives it. Nothing is captured globally; the library installs no
@@ -272,27 +283,34 @@ Linear modes — `scroll` and `terminal` — scroll the region:
 
 | Key | Action |
 | --- | --- |
-| `↓` | Scroll down 80px (smooth) |
-| `↑` | Scroll up 80px (smooth) |
-| `Space` | Scroll down one viewport height |
+| `↓` | Scroll down 80px |
+| `↑` | Scroll up 80px |
+| `PageDown` | Scroll down one screenful |
+| `PageUp` | Scroll up one screenful |
+| `Space` | Scroll down one screenful |
+| `Shift+Space` | Scroll up one screenful |
 | `Home` | Jump to the start |
 | `End` | Jump to the end |
+
+`hypertext` mode uses the same contract, scrolling its own content area. It yields to your
+markup: the handler only fires when the region itself has focus, so links, inputs and custom
+widgets passed as `children` keep their own arrow and space keys.
 
 Paginated modes — `book` and `editorial` — move between pages/sheets:
 
 | Key | Action |
 | --- | --- |
-| `←` | Previous page / sheet |
-| `→` | Next page / sheet |
+| `←` / `PageUp` | Previous page / sheet |
+| `→` / `PageDown` | Next page / sheet |
 | `Space` | Next page / sheet |
+| `Shift+Space` | Previous page / sheet |
 | `Home` | First page / sheet |
 | `End` | Last page / sheet |
 
-All of these call `preventDefault()`, so they do not additionally scroll the host document.
-`hypertext` mode has no key handling at all.
+`preventDefault()` is called only when a key is actually handled, so anything the reader does
+not use passes through to the host document.
 
-`PageUp` and `PageDown` are not handled, and `Space` only moves forward — there is no
-`Shift+Space` to page backwards in the linear modes.
+Scrolling is smooth by default and switches to instant when the user asks for reduced motion.
 
 ### Touch
 
@@ -315,31 +333,35 @@ page containing the whole body and only measure and paginate in an effect after 
 server output is the complete text; `ResizeObserver` and `window.matchMedia` are touched
 inside effects only.
 
+### Deliberate choices
+
+Two things are done in a way that may look like an omission, so they are worth stating.
+
+**The progress bars are decorative, not `role="progressbar"`.** Both bars keep
+`aria-hidden="true"` and each mode renders a screen-reader text equivalent instead
+(`labels.progress`, default `Reading progress: 40%`). A progressbar wired to scroll position
+is spoken on every value change by some screen readers, which means it talks continuously
+while you arrow through prose — worse than having no exposure at all. A text equivalent is
+readable on demand and never interrupts.
+
+**Page and sheet changes are announced by a dedicated hidden live region**, not by making the
+visible status line live. On mount the reader renders `Page 1 of 1`, then re-measures and
+re-paginates a frame later; a live visible status line would announce that layout pass, and
+every window resize after it, as though the reader had turned a page. The announcer stays
+empty until the first real page turn. The trade-off is that after that first turn the status
+text exists twice in the accessibility tree, so in browse mode you may meet it twice.
+
 ### Known gaps
 
-These are real limitations of the current code, listed so you can decide whether they matter
-for your piece:
-
-- **Page and sheet changes are not announced.** The `Page 1 of 7` / `Sheet 1 of 4` status
-  line is plain text with no `aria-live` region, so a screen-reader user who presses `→`
-  gets no confirmation that anything happened.
-- **The `aria-label`s are not localisable.** `labels` covers every visible string, but the
-  `aria-label`s on the navigation controls are still hardcoded English.
-- **The nav wrappers carry `aria-label` on a plain `<div>`** with no `role`, so those labels
-  (`Book page navigation`, `Editorial sheet navigation`) are not exposed by assistive
-  technology.
-- **Progress is visual only.** The scroll and terminal progress indicators are
-  `aria-hidden="true"` and have no `role="progressbar"` or text equivalent, so reading
-  position is unavailable non-visually.
-- **Transitions ignore `prefers-reduced-motion`.** The fade and slide animations run
-  regardless of the user's motion preference. Pass `transition="none"` to disable them, or add
-  a `prefers-reduced-motion` override in your own CSS.
-- **`hypertext` mode is not focusable and has no key handling**, although its content area is
-  scrollable. In that mode the accessibility of everything inside is entirely the host's
-  responsibility.
-- **The stylesheet relies on `color-mix()`** for focus outlines, nav button states and
-  progress-track backgrounds. Browsers without support lose those, including the focus
-  outline — override `:focus-visible` yourself if you need to support them.
+- **The mode chrome is hardcoded English.** `labels` covers every status line and accessible
+  name, but the typographic set dressing of each mode is not configurable: `reader --scroll`,
+  `less --book`, `$ cat document.txt`, `[EOF]`, `viewer --editorial`, and the placeholder
+  `no hypertext content provided`. These read as part of each mode's visual design rather than
+  as interface copy, which is why they were left alone — but a piece in another language will
+  see them in English.
+- **No automated accessibility tests.** The suite runs in Node with no DOM, so roles, live
+  regions and focus behaviour are verified by reading the code and by hand, not by assertion.
+  Adding a DOM environment would mean adding a dev dependency, which the project avoids.
 
 Contributions closing any of these are welcome; see [CONTRIBUTING.md](./CONTRIBUTING.md).
 

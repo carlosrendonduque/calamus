@@ -2,15 +2,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, TouchEvent } from "react";
 import type { ReaderContent, ReaderLabels, ReaderTransition } from "../types";
 import { paginateEditorialParagraphs, type EditorialSheet } from "../internal/pagination";
+import { getPageAction } from "../internal/keys";
 
 type EditorialReaderProps = {
   content: ReaderContent;
   readingTimeText: string;
   transition: ReaderTransition;
-  sheetLabel: NonNullable<ReaderLabels["sheet"]>;
+  labels: Required<ReaderLabels>;
 };
 
-export function EditorialReader({ content, readingTimeText, transition, sheetLabel }: EditorialReaderProps) {
+export function EditorialReader({ content, readingTimeText, transition, labels }: EditorialReaderProps) {
   const sourceName = content.subtitle ? `viewer --editorial ${content.subtitle}` : "viewer --editorial";
   const bodyRef = useRef<HTMLElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
@@ -18,6 +19,7 @@ export function EditorialReader({ content, readingTimeText, transition, sheetLab
   const [currentSheet, setCurrentSheet] = useState(0);
   const [columnCount, setColumnCount] = useState(1);
   const [navDirection, setNavDirection] = useState<"forward" | "backward">("forward");
+  const [hasTurned, setHasTurned] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const touchCurrentRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -85,49 +87,47 @@ export function EditorialReader({ content, readingTimeText, transition, sheetLab
   const canGoPrevious = currentSheet > 0;
   const canGoNext = currentSheet < totalSheets - 1;
 
-  const goPrevious = () => {
-    if (!canGoPrevious) {
+  const goToSheet = (nextSheet: number) => {
+    const target = Math.min(Math.max(0, nextSheet), Math.max(0, totalSheets - 1));
+
+    if (target === currentSheet) {
       return;
     }
 
-    setNavDirection("backward");
-    setCurrentSheet((sheet) => Math.max(0, sheet - 1));
+    setNavDirection(target > currentSheet ? "forward" : "backward");
+    setCurrentSheet(target);
+    // The live region stays empty until the reader turns a sheet, so mounting and
+    // re-pagination are silent and only real sheet turns are announced.
+    setHasTurned(true);
+  };
+
+  const goPrevious = () => {
+    goToSheet(currentSheet - 1);
   };
 
   const goNext = () => {
-    if (!canGoNext) {
-      return;
-    }
-
-    setNavDirection("forward");
-    setCurrentSheet((sheet) => Math.min(totalSheets - 1, sheet + 1));
+    goToSheet(currentSheet + 1);
   };
 
   const handleEditorialKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key === "ArrowLeft") {
-      event.preventDefault();
+    const action = getPageAction(event.key, event.shiftKey);
+    if (!action) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (action === "previous") {
       goPrevious();
       return;
     }
 
-    if (event.key === "ArrowRight" || event.key === " ") {
-      event.preventDefault();
+    if (action === "next") {
       goNext();
       return;
     }
 
-    if (event.key === "Home") {
-      event.preventDefault();
-      setNavDirection("backward");
-      setCurrentSheet(0);
-      return;
-    }
-
-    if (event.key === "End") {
-      event.preventDefault();
-      setNavDirection("forward");
-      setCurrentSheet(Math.max(0, totalSheets - 1));
-    }
+    goToSheet(action === "first" ? 0 : totalSheets - 1);
   };
 
   const handleTouchStart = (event: TouchEvent<HTMLElement>) => {
@@ -177,10 +177,12 @@ export function EditorialReader({ content, readingTimeText, transition, sheetLab
           : "calamus__editorial-sheet-content--slide-backward"
         : "calamus__editorial-sheet-content--fade";
 
+  const sheetStatus = labels.sheet(currentSheet + 1, totalSheets);
+
   return (
     <section
       className="calamus calamus--editorial"
-      aria-label="Editorial reading mode"
+      aria-label={labels.readingMode("editorial")}
       tabIndex={0}
       onKeyDown={handleEditorialKeyDown}
       onTouchStart={handleTouchStart}
@@ -215,23 +217,26 @@ export function EditorialReader({ content, readingTimeText, transition, sheetLab
           ))}
         </div>
       </article>
-      <div className="calamus__editorial-nav" aria-label="Editorial sheet navigation">
+      <div className="calamus__editorial-nav" role="group" aria-label={labels.sheetNavigation}>
         <button
           type="button"
           className="calamus__editorial-nav-button"
           onClick={goPrevious}
           disabled={!canGoPrevious}
-          aria-label="Previous sheet"
+          aria-label={labels.previousSheet}
         >
           ←
         </button>
-        <span className="calamus__editorial-nav-status">{sheetLabel(currentSheet + 1, totalSheets)}</span>
+        <span className="calamus__editorial-nav-status">{sheetStatus}</span>
+        <span className="calamus__sr-only" role="status" aria-live="polite">
+          {hasTurned ? sheetStatus : ""}
+        </span>
         <button
           type="button"
           className="calamus__editorial-nav-button"
           onClick={goNext}
           disabled={!canGoNext}
-          aria-label="Next sheet"
+          aria-label={labels.nextSheet}
         >
           →
         </button>
@@ -240,4 +245,3 @@ export function EditorialReader({ content, readingTimeText, transition, sheetLab
     </section>
   );
 }
-

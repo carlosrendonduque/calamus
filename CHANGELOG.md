@@ -33,6 +33,9 @@ Work preparing the library for its first public release.
   rendered in any language. Replaces the single `readingTimeLabel` prop.
 - `lang` prop, forwarded to the root element, so non-English text is announced and hyphenated
   correctly.
+- Eight more `ReaderLabels` keys covering every accessible name: `readingMode`, `progress`,
+  `pageNavigation`, `sheetNavigation`, `previousPage`, `nextPage`, `previousSheet`, `nextSheet`.
+  No accessible name is hardcoded any more. No new prop; `ReaderProps` is unchanged.
 
 ### Changed
 
@@ -47,6 +50,25 @@ Work preparing the library for its first public release.
 - `editorial` mode no longer returns a single-column sheet from its early-return paths when
   more columns were requested. An empty body, or a body measured before layout settled, used
   to render one column and then snap to two once real heights arrived.
+- Page and sheet changes are announced. Each paged mode renders a hidden
+  `role="status" aria-live="polite"` region that stays empty until the first real page turn, so
+  re-pagination and resizes are not announced as navigation.
+- The page-turn control clusters carry `role="group"`, so their accessible names are exposed.
+  Previously the `aria-label` sat on a role-less `<div>` and was dropped.
+- The progress bars have a screen-reader text equivalent (`labels.progress`). They stay
+  decorative rather than becoming `role="progressbar"`, which some screen readers narrate
+  continuously while scrolling.
+- Animations and smooth scrolling honour `prefers-reduced-motion`, in CSS and in the keyboard
+  handlers. Pages and sheets still change; only the animation goes.
+- `hypertext` mode is focusable and handles keys, using the same contract as the other linear
+  modes. It yields to `children`: the handler only fires when the region itself has focus, so
+  host widgets keep their own arrow and space keys.
+- Every `color-mix()` declaration has a plain fallback before it, so browsers without support
+  keep a visible focus outline instead of losing it.
+- `PageUp` / `PageDown` in every mode, and `Shift+Space` to move backwards. `preventDefault()`
+  is now called only for keys the reader actually handles, so the rest pass through.
+- `paginateEditorialParagraphs` no longer throws on a `columnCount` below 1, fractional, `NaN`
+  or `Infinity`; it floors to a minimum of one column.
 
 ## [0.1.0] - 2026-05-26
 

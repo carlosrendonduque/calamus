@@ -29,6 +29,20 @@
   background: var(--calamus-bg);
 }
 
+/* Text for assistive technology only: read out, never drawn. */
+.calamus__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .calamus__head {
   margin-bottom: 1.5rem;
   padding-bottom: 0.9rem;
@@ -85,6 +99,7 @@
 }
 
 .calamus--scroll:focus-visible {
+  outline: 2px solid var(--calamus-accent);
   outline: 2px solid color-mix(in srgb, var(--calamus-accent), #fff 8%);
   outline-offset: 2px;
 }
@@ -97,6 +112,7 @@
   width: 100%;
   margin-bottom: 1rem;
   border-radius: 999px;
+  background: var(--calamus-border);
   background: color-mix(in srgb, var(--calamus-border), transparent 58%);
 }
 
@@ -119,6 +135,7 @@
 }
 
 .calamus--terminal:focus-visible {
+  outline: 2px solid var(--calamus-terminal-muted);
   outline: 2px solid color-mix(in srgb, var(--calamus-terminal-muted), #fff 8%);
   outline-offset: 2px;
 }
@@ -163,6 +180,7 @@
 .calamus__terminal-progress-line {
   flex: 1;
   height: 1px;
+  background: var(--calamus-terminal-muted);
   background: color-mix(in srgb, var(--calamus-terminal-muted), transparent 62%);
 }
 
@@ -185,6 +203,7 @@
 }
 
 .calamus--editorial:focus-visible {
+  outline: 2px solid var(--calamus-accent);
   outline: 2px solid color-mix(in srgb, var(--calamus-accent), #fff 8%);
   outline-offset: 2px;
 }
@@ -298,6 +317,7 @@
 
 .calamus__editorial-nav-button {
   border: 1px solid var(--calamus-border);
+  background: var(--calamus-panel);
   background: color-mix(in srgb, var(--calamus-panel), #fff 22%);
   color: var(--calamus-fg);
   border-radius: 999px;
@@ -308,7 +328,9 @@
 }
 
 .calamus__editorial-nav-button:hover:not(:disabled) {
+  border-color: var(--calamus-accent);
   border-color: color-mix(in srgb, var(--calamus-accent), var(--calamus-border) 38%);
+  background: var(--calamus-bg);
   background: color-mix(in srgb, var(--calamus-panel), #fff 40%);
 }
 
@@ -327,6 +349,12 @@
   padding: 1.4rem;
 }
 
+.calamus--hypertext:focus-visible {
+  outline: 2px solid var(--calamus-accent);
+  outline: 2px solid color-mix(in srgb, var(--calamus-accent), #fff 8%);
+  outline-offset: 2px;
+}
+
 .calamus__hypertext-content {
   min-height: 220px;
   padding: 0.2rem 0;
@@ -343,10 +371,12 @@
 
 .calamus--book-frame {
   padding: 0.9rem;
+  background: var(--calamus-bg);
   background: color-mix(in srgb, var(--calamus-bg), #000 4%);
 }
 
 .calamus--book-frame:focus-visible {
+  outline: 2px solid var(--calamus-accent);
   outline: 2px solid color-mix(in srgb, var(--calamus-accent), #fff 8%);
   outline-offset: 2px;
 }
@@ -433,6 +463,7 @@
 
 .calamus__book-nav-button {
   border: 1px solid var(--calamus-border);
+  background: var(--calamus-panel);
   background: color-mix(in srgb, var(--calamus-panel), #fff 22%);
   color: var(--calamus-fg);
   border-radius: 999px;
@@ -443,7 +474,9 @@
 }
 
 .calamus__book-nav-button:hover:not(:disabled) {
+  border-color: var(--calamus-accent);
   border-color: color-mix(in srgb, var(--calamus-accent), var(--calamus-border) 38%);
+  background: var(--calamus-bg);
   background: color-mix(in srgb, var(--calamus-panel), #fff 40%);
 }
 
@@ -464,4 +497,29 @@
   top: 0;
   visibility: hidden;
   pointer-events: none;
+}
+
+/*
+ * Reduced motion: the page and sheet still change, they just stop moving.
+ * Keyboard scrolling drops its smooth behaviour in `src/internal/keys.ts`.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .calamus__book-page-content,
+  .calamus__book-page-content--fade,
+  .calamus__book-page-content--slide-forward,
+  .calamus__book-page-content--slide-backward,
+  .calamus__editorial-sheet-content,
+  .calamus__editorial-sheet-content--fade,
+  .calamus__editorial-sheet-content--slide-forward,
+  .calamus__editorial-sheet-content--slide-backward {
+    animation: none;
+    will-change: auto;
+  }
+
+  .calamus__scroll-progress-fill,
+  .calamus__terminal-progress-fill,
+  .calamus__book-nav-button,
+  .calamus__editorial-nav-button {
+    transition: none;
+  }
 }
