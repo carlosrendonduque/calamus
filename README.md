@@ -249,6 +249,31 @@ do not resolve and there is no fallback: the declaration is simply dropped and t
 inherits whatever your page already said. If a component styled this way looks wrong, check
 that it is actually rendering inside the reader.
 
+### The reader measures its own box, not the window
+
+Everything the reader sizes against — the column count in `editorial`, the display type — comes
+from the width of the reader's own container, not from the viewport. Put it in a 380px card on a
+wide screen and it lays out like a 380px card.
+
+That is implemented with a CSS container (`container-type: inline-size`, `container-name:
+calamus`), and it has one consequence worth stating plainly, because it will otherwise look like
+a bug:
+
+> **A host that expects the reader to size itself has to give it a width.** A query container has
+> no intrinsic inline size, so a shrink-to-fit parent — `inline-block`, a float, a `max-content`
+> grid track, a `display: table` cell — has nothing to measure and the reader comes out 0px wide.
+
+Ordinary block flow and flex items are fine and need nothing: the reader asks the host box for
+its width. If you are placing it somewhere that sizes to its contents, state a width on it or on
+its parent.
+
+Two more things the container brings, which you may use or ignore:
+
+| | |
+| --- | --- |
+| `--calamus-editorial-columns` | The column count `editorial` paginates into. The stylesheet sets `1`, and `2` past 768px of container width. Override it to force a count — `3` for a broadsheet, `1` always. |
+| `container-name: calamus` | The container's name. Pick a different name for your own containers if you write `@container` rules around the reader. |
+
 `maxHeight` is the one token that is not a colour or a font. By default the reader sizes
 itself against the viewport, which suits a page given over to reading. Set it to `"100%"` and
 put the reader in a host element with a definite height when you want it to fit a card, a

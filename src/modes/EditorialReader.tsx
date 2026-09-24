@@ -11,8 +11,34 @@ type EditorialReaderProps = {
   labels: Required<ReaderLabels>;
 };
 
+const COLUMN_COUNT_PROPERTY = "--calamus-editorial-columns";
+
+/**
+ * How many columns the sheet actually has, asked of CSS rather than decided here.
+ * The `@container` rule in `styles.css` sets this custom property and the same
+ * property drives `grid-template-columns`, so the breakpoint is written once and
+ * the paginator cannot disagree with the grid it is filling.
+ *
+ * Do not put `window.matchMedia("(min-width: 768px)")` back: it measures the
+ * window, not this box, so a 380px card on a wide desktop was paginated into two
+ * columns the grid never drew — and it wrote the breakpoint down a second time.
+ * A `ResizeObserver` comparing the measured width against a JavaScript copy of
+ * `768` would fix the first half and keep the second.
+ */
+function readColumnCount(element: Element): number {
+  const declared = Number.parseInt(
+    window.getComputedStyle(element).getPropertyValue(COLUMN_COUNT_PROPERTY),
+    10
+  );
+
+  // One column is what the stylesheet declares before any query matches, so it is
+  // also the right answer when the host forgot to load the stylesheet at all.
+  return Number.isFinite(declared) && declared > 0 ? declared : 1;
+}
+
 export function EditorialReader({ content, readingTimeText, transition, labels }: EditorialReaderProps) {
   const sourceName = content.subtitle ? `viewer --editorial ${content.subtitle}` : "viewer --editorial";
+  const surfaceRef = useRef<HTMLElement | null>(null);
   const bodyRef = useRef<HTMLElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
   const [sheets, setSheets] = useState<EditorialSheet[]>([[content.body.map((_, index) => index)]]);
@@ -38,11 +64,11 @@ export function EditorialReader({ content, readingTimeText, transition, labels }
         return;
       }
 
-      const nextColumnCount = window.matchMedia("(min-width: 768px)").matches ? 2 : 1;
+      const nextColumnCount = readColumnCount(bodyElement);
       setColumnCount(nextColumnCount);
 
-      const measuredColumnWidth =
-        nextColumnCount === 2 ? (width - parseFloat(getComputedStyle(bodyElement).columnGap || "0")) / 2 : width;
+      const columnGap = parseFloat(getComputedStyle(bodyElement).columnGap || "0") || 0;
+      const measuredColumnWidth = (width - columnGap * (nextColumnCount - 1)) / nextColumnCount;
 
       measureElement.style.width = `${Math.max(0, measuredColumnWidth)}px`;
       measureElement.innerHTML = "";
@@ -68,6 +94,16 @@ export function EditorialReader({ content, readingTimeText, transition, labels }
     });
 
     observer.observe(bodyElement);
+
+    // The article is what the paginator measures, but `max-width: 70ch` pins its
+    // width while the reader keeps growing, so on its own it can miss the resize
+    // that crosses the column breakpoint. The surface has the width of the query
+    // container and a height that never comes from its own pagination, so
+    // watching it adds the missing signal and no feedback loop.
+    const surfaceElement = surfaceRef.current;
+    if (surfaceElement) {
+      observer.observe(surfaceElement);
+    }
 
     return () => {
       observer.disconnect();
@@ -181,6 +217,7 @@ export function EditorialReader({ content, readingTimeText, transition, labels }
 
   return (
     <section
+      ref={surfaceRef}
       className="calamus calamus--editorial"
       aria-label={labels.readingMode("editorial")}
       tabIndex={0}

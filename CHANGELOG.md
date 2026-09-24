@@ -79,6 +79,19 @@ Work preparing the library for its first public release.
   is now called only for keys the reader actually handles, so the rest pass through.
 - `paginateEditorialParagraphs` no longer throws on a `columnCount` below 1, fractional, `NaN`
   or `Infinity`; it floors to a minimum of one column.
+- **The reader measures its own container, not the window.** `editorial` decided its column
+  count with `window.matchMedia("(min-width: 768px)")`, so a 380px card on a 1400px desktop got
+  two 136px columns with display type sized for the window. The count now comes from an
+  `@container` rule and the component reads it back from the custom property that drives the
+  grid, so the paginator cannot disagree with the grid it is filling. The fluid type moved from
+  `vw` to `cqi`. One `matchMedia` call and one duplicated breakpoint are gone.
+
+  Two consequences. In ordinary flow at a viewport of 768–799px with default body margins,
+  `editorial` now shows one column rather than two, because the root is narrower than the window
+  by the margin and the scrollbar and the count finally reflects that. And a host that expects
+  the reader to size itself must now give it a width: a query container has no intrinsic inline
+  size, so a shrink-to-fit parent has nothing to measure. Block flow and flex items are
+  unaffected.
 - **`book` and `editorial` no longer collapse.** Both now render at a fixed height —
   `min(78vh, 860px)` by default, or whatever `theme.maxHeight` says — instead of shrinking to
   fit the pagination they had just produced. That was a feedback loop: the frame hugged the

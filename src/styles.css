@@ -21,6 +21,27 @@
 .calamus-root {
   color: var(--calamus-fg);
   font-family: var(--calamus-serif-font);
+  /* The reader answers to its own box, not to the window. Everything below that
+     used to be sized in `vw` is sized in `cqi` against this container, and the
+     editorial column count is an `@container` rule instead of a `matchMedia`
+     call. `inline-size` and not `size`: the block axis stays content-driven, so
+     nothing here can ask the box about a height the box took from its contents. */
+  container-type: inline-size;
+  container-name: calamus;
+  /* Inline-size containment also takes the root out of its own width
+     calculation, so a host that let the reader size itself measured it as 0px
+     wide. Asking for the width of the host box instead restores the flex item,
+     which is the common case. `stretch` is `auto` minus the margins, so a host
+     margin still fits; `100%` is the last-resort fallback, and the prefixed
+     spellings mean no engine with container queries has to take it. In ordinary
+     block flow all of them resolve to what `auto` already gave, measured
+     unchanged. A shrink-to-fit host — an `inline-block`, a float, a
+     `max-content` track — cannot be rescued from here: a query container has no
+     intrinsic inline size, so such a host has to state a width of its own. */
+  width: 100%;
+  width: -webkit-fill-available;
+  width: -moz-available;
+  width: stretch;
   /* `--calamus-max-height` is a cap by default and a height when it is set, so
      the reader can fill a host box: `theme={{ maxHeight: "100%" }}` inside a
      container with an explicit height. With no token this is `auto`, and a
@@ -80,7 +101,7 @@
 
 .calamus__title {
   margin: 0.8rem 0 0;
-  font-size: clamp(1.7rem, 2.9vw, 2.3rem);
+  font-size: clamp(1.7rem, 2.9cqi, 2.3rem);
   line-height: 1.15;
 }
 
@@ -104,7 +125,7 @@
 
 .calamus__paragraph {
   margin: 0 0 1.2rem;
-  font-size: clamp(1rem, 1.5vw, 1.12rem);
+  font-size: clamp(1rem, 1.5cqi, 1.12rem);
   line-height: 1.9;
 }
 
@@ -214,6 +235,10 @@
 }
 
 .calamus--editorial {
+  /* The single source of truth for the editorial column count. The grid below
+     uses it, and `EditorialReader` reads this same property back to paginate, so
+     the sheets always have as many columns as the grid draws. */
+  --calamus-editorial-columns: 1;
   position: relative;
   padding: 1.6rem;
   display: flex;
@@ -234,7 +259,7 @@
 
 .calamus--editorial .calamus__title {
   margin-top: 0.2rem;
-  font-size: clamp(2rem, 4vw, 2.9rem);
+  font-size: clamp(2rem, 4cqi, 2.9rem);
 }
 
 .calamus__editorial-article {
@@ -249,14 +274,16 @@
 
 .calamus__editorial-sheet-content {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(var(--calamus-editorial-columns), 1fr);
   gap: var(--calamus-column-gap);
   will-change: transform, opacity;
 }
 
-@media (min-width: 768px) {
-  .calamus__editorial-sheet-content {
-    grid-template-columns: 1fr 1fr;
+/* The width of the reader, not the width of the window: a 380px card on a wide
+   desktop reads in one column. This is the only place the breakpoint is written. */
+@container calamus (min-width: 768px) {
+  .calamus--editorial {
+    --calamus-editorial-columns: 2;
   }
 }
 
