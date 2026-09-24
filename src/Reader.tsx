@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { KeyboardEvent, TouchEvent } from "react";
-import type { ReaderContent, ReaderProps, ReaderTheme, ReaderTransition } from "./types";
+import type { ReaderContent, ReaderLabels, ReaderProps, ReaderTheme, ReaderTransition } from "./types";
 import { EditorialReader } from "./modes/EditorialReader";
 import { HypertextReader } from "./modes/HypertextReader";
+import { paginateParagraphs } from "./internal/pagination";
+import { getReadingTimeText } from "./internal/readingTime";
 
 const THEME_TO_VAR: Record<keyof ReaderTheme, string> = {
   background: "--calamus-bg",
@@ -19,6 +21,12 @@ const THEME_TO_VAR: Record<keyof ReaderTheme, string> = {
   terminalBorder: "--calamus-terminal-border",
   serifFontFamily: "--calamus-serif-font",
   monoFontFamily: "--calamus-mono-font"
+};
+
+const DEFAULT_LABELS: Required<ReaderLabels> = {
+  page: (current, total) => `Page ${current} of ${total}`,
+  sheet: (current, total) => `Sheet ${current} of ${total}`,
+  readingTime: "min read"
 };
 
 function themeToCssVars(theme?: ReaderTheme): CSSProperties {
@@ -41,57 +49,6 @@ function renderParagraphs(body: string[]) {
       {paragraph}
     </p>
   ));
-}
-
-function getWordCount(body: string[]) {
-  return body.reduce((total, paragraph) => {
-    const words = paragraph.trim().split(/\s+/).filter(Boolean).length;
-    return total + words;
-  }, 0);
-}
-
-function getReadingTimeText(content: ReaderContent, readingTimeLabel: string) {
-  const words = getWordCount(content.body);
-  const minutes = Math.max(1, Math.ceil(words / 250));
-  return `${minutes} ${readingTimeLabel}`;
-}
-
-function paginateParagraphs(paragraphHeights: number[], availableHeight: number): number[][] {
-  if (paragraphHeights.length === 0) {
-    return [[]];
-  }
-
-  if (availableHeight <= 0) {
-    return [paragraphHeights.map((_, index) => index)];
-  }
-
-  const pages: number[][] = [];
-  let currentPage: number[] = [];
-  let currentHeight = 0;
-
-  paragraphHeights.forEach((height, index) => {
-    if (currentPage.length === 0) {
-      currentPage = [index];
-      currentHeight = height;
-      return;
-    }
-
-    if (currentHeight + height <= availableHeight) {
-      currentPage.push(index);
-      currentHeight += height;
-      return;
-    }
-
-    pages.push(currentPage);
-    currentPage = [index];
-    currentHeight = height;
-  });
-
-  if (currentPage.length > 0) {
-    pages.push(currentPage);
-  }
-
-  return pages;
 }
 
 function TerminalMode({ content }: { content: ReaderContent }) {
@@ -292,7 +249,15 @@ function ScrollMode({
   );
 }
 
-function BookMode({ content, transition }: { content: ReaderContent; transition: ReaderTransition }) {
+function BookMode({
+  content,
+  transition,
+  pageLabel
+}: {
+  content: ReaderContent;
+  transition: ReaderTransition;
+  pageLabel: NonNullable<ReaderLabels["page"]>;
+}) {
   const bodyRef = useRef<HTMLElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
   const [pages, setPages] = useState<number[][]>([content.body.map((_, index) => index)]);
@@ -491,7 +456,7 @@ function BookMode({ content, transition }: { content: ReaderContent; transition:
           >
             ←
           </button>
-          <span className="calamus__book-nav-status">{`Pagina ${currentPage + 1} de ${totalPages}`}</span>
+          <span className="calamus__book-nav-status">{pageLabel(currentPage + 1, totalPages)}</span>
           <button
             type="button"
             className="calamus__book-nav-button"
@@ -515,7 +480,8 @@ export function Reader({
   className,
   style,
   children,
-  readingTimeLabel = "min de lectura",
+  labels,
+  lang,
   transition = "fade"
 }: ReaderProps) {
   const mergedStyle = {
@@ -524,15 +490,22 @@ export function Reader({
   };
 
   const rootClassName = ["calamus-root", className].filter(Boolean).join(" ");
-  const readingTimeText = getReadingTimeText(content, readingTimeLabel);
+  const readingTimeText = getReadingTimeText(content, labels?.readingTime ?? DEFAULT_LABELS.readingTime);
+  const pageLabel = labels?.page ?? DEFAULT_LABELS.page;
+  const sheetLabel = labels?.sheet ?? DEFAULT_LABELS.sheet;
 
   return (
-    <div className={rootClassName} style={mergedStyle}>
+    <div className={rootClassName} style={mergedStyle} lang={lang}>
       {mode === "terminal" ? <TerminalMode content={content} /> : null}
       {mode === "scroll" ? <ScrollMode content={content} readingTimeText={readingTimeText} /> : null}
-      {mode === "book" ? <BookMode content={content} transition={transition} /> : null}
+      {mode === "book" ? <BookMode content={content} transition={transition} pageLabel={pageLabel} /> : null}
       {mode === "editorial" ? (
-        <EditorialReader content={content} readingTimeText={readingTimeText} transition={transition} />
+        <EditorialReader
+          content={content}
+          readingTimeText={readingTimeText}
+          transition={transition}
+          sheetLabel={sheetLabel}
+        />
       ) : null}
       {mode === "hypertext" ? <HypertextReader content={content}>{children}</HypertextReader> : null}
     </div>

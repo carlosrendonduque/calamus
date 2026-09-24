@@ -1,61 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, TouchEvent } from "react";
-import type { ReaderContent, ReaderTransition } from "../types";
+import type { ReaderContent, ReaderLabels, ReaderTransition } from "../types";
+import { paginateEditorialParagraphs, type EditorialSheet } from "../internal/pagination";
 
 type EditorialReaderProps = {
   content: ReaderContent;
   readingTimeText: string;
   transition: ReaderTransition;
+  sheetLabel: NonNullable<ReaderLabels["sheet"]>;
 };
 
-type EditorialSheet = number[][];
-
-function paginateEditorialParagraphs(
-  paragraphHeights: number[],
-  availableHeight: number,
-  columnCount: number
-): EditorialSheet[] {
-  if (paragraphHeights.length === 0) {
-    return [[[]]];
-  }
-
-  if (availableHeight <= 0) {
-    return [[paragraphHeights.map((_, index) => index)]];
-  }
-
-  const sheets: EditorialSheet[] = [];
-  let currentSheet: EditorialSheet = Array.from({ length: columnCount }, () => []);
-  let currentColumn = 0;
-  let currentColumnHeight = 0;
-
-  paragraphHeights.forEach((height, index) => {
-    const fitsCurrentColumn = currentColumnHeight + height <= availableHeight;
-
-    if (fitsCurrentColumn || currentSheet[currentColumn].length === 0) {
-      currentSheet[currentColumn].push(index);
-      currentColumnHeight += height;
-      return;
-    }
-
-    if (currentColumn < columnCount - 1) {
-      currentColumn += 1;
-      currentSheet[currentColumn].push(index);
-      currentColumnHeight = height;
-      return;
-    }
-
-    sheets.push(currentSheet);
-    currentSheet = Array.from({ length: columnCount }, () => []);
-    currentColumn = 0;
-    currentSheet[currentColumn].push(index);
-    currentColumnHeight = height;
-  });
-
-  sheets.push(currentSheet);
-  return sheets;
-}
-
-export function EditorialReader({ content, readingTimeText, transition }: EditorialReaderProps) {
+export function EditorialReader({ content, readingTimeText, transition, sheetLabel }: EditorialReaderProps) {
   const sourceName = content.subtitle ? `viewer --editorial ${content.subtitle}` : "viewer --editorial";
   const bodyRef = useRef<HTMLElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
@@ -270,7 +225,7 @@ export function EditorialReader({ content, readingTimeText, transition }: Editor
         >
           ←
         </button>
-        <span className="calamus__editorial-nav-status">{`Hoja ${currentSheet + 1} de ${totalSheets}`}</span>
+        <span className="calamus__editorial-nav-status">{sheetLabel(currentSheet + 1, totalSheets)}</span>
         <button
           type="button"
           className="calamus__editorial-nav-button"
