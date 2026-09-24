@@ -24,6 +24,13 @@ export type ReaderTheme = Partial<{
   terminalBorder: string;
   serifFontFamily: string;
   monoFontFamily: string;
+  /**
+   * Height of the reading surface. Default: a `min(78vh, 860px)` cap. Set it to
+   * `"100%"` inside a host element with an explicit height and the reader fills
+   * that box, so `book` and `editorial` paginate to it. Against a host of
+   * automatic height `"100%"` resolves to `auto`, which leaves the reader uncapped.
+   */
+  maxHeight: string;
 }>;
 
 /**

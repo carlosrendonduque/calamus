@@ -22,7 +22,8 @@ const THEME_TO_VAR: Record<keyof ReaderTheme, string> = {
   terminalEof: "--calamus-terminal-eof",
   terminalBorder: "--calamus-terminal-border",
   serifFontFamily: "--calamus-serif-font",
-  monoFontFamily: "--calamus-mono-font"
+  monoFontFamily: "--calamus-mono-font",
+  maxHeight: "--calamus-max-height"
 };
 
 function themeToCssVars(theme?: ReaderTheme): CSSProperties {

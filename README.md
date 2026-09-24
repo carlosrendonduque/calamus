@@ -230,6 +230,13 @@ custom property. Every key is optional; unset keys keep the defaults from `src/s
 | `terminalBorder` | `--calamus-terminal-border` | `terminal` frame border |
 | `serifFontFamily` | `--calamus-serif-font` | Prose and titles |
 | `monoFontFamily` | `--calamus-mono-font` | Labels, counters, `terminal` mode |
+| `maxHeight` | `--calamus-max-height` | Height of the reading surface. Default `min(78vh, 860px)` |
+
+`maxHeight` is the one token that is not a colour or a font. By default the reader sizes
+itself against the viewport, which suits a page given over to reading. Set it to `"100%"` and
+put the reader in a host element with a definite height when you want it to fit a card, a
+column or a split pane instead — `book` and `editorial` then paginate to that box and
+re-paginate when it changes size.
 
 ```tsx
 <Reader

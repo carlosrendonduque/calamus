@@ -21,6 +21,22 @@
 .calamus-root {
   color: var(--calamus-fg);
   font-family: var(--calamus-serif-font);
+  /* `--calamus-max-height` is a cap by default and a height when it is set, so
+     the reader can fill a host box: `theme={{ maxHeight: "100%" }}` inside a
+     container with an explicit height. With no token this is `auto`, and a
+     percentage against an auto-height container is `auto` too, so a reader
+     dropped into ordinary document flow is unaffected. */
+  height: var(--calamus-max-height, auto);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fills the root when the root has a height, hugs its content when it does not.
+   Flex sizing works on border boxes, so the padding of each mode surface is
+   accounted for without changing `box-sizing`. */
+.calamus-root > .calamus {
+  flex: auto;
+  min-height: 0;
 }
 
 .calamus {
@@ -95,7 +111,7 @@
 .calamus--scroll {
   padding: 1.4rem;
   overflow: auto;
-  max-height: min(78vh, 860px);
+  max-height: var(--calamus-max-height, min(78vh, 860px));
 }
 
 .calamus--scroll:focus-visible {
@@ -127,7 +143,7 @@
 .calamus--terminal {
   padding: 1.2rem;
   overflow: auto;
-  max-height: min(78vh, 860px);
+  max-height: var(--calamus-max-height, min(78vh, 860px));
   background: var(--calamus-terminal-bg);
   color: var(--calamus-terminal-fg);
   border-color: var(--calamus-terminal-border);
@@ -200,6 +216,8 @@
 .calamus--editorial {
   position: relative;
   padding: 1.6rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .calamus--editorial:focus-visible {
@@ -218,10 +236,12 @@
 }
 
 .calamus__editorial-article {
+  flex: auto;
+  min-height: 0;
   margin: 0 auto;
   max-width: 70ch;
   column-gap: var(--calamus-column-gap);
-  max-height: min(78vh, 860px);
+  max-height: var(--calamus-max-height, min(78vh, 860px));
   overflow: auto;
 }
 
@@ -347,6 +367,8 @@
 
 .calamus--hypertext {
   padding: 1.4rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .calamus--hypertext:focus-visible {
@@ -356,6 +378,7 @@
 }
 
 .calamus__hypertext-content {
+  flex: auto;
   min-height: 220px;
   padding: 0.2rem 0;
   overflow: auto;
@@ -371,6 +394,8 @@
 
 .calamus--book-frame {
   padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
   background: var(--calamus-bg);
   background: color-mix(in srgb, var(--calamus-bg), #000 4%);
 }
@@ -382,6 +407,11 @@
 }
 
 .calamus__book-page {
+  /* Inside a bounded reader the page is given the height rather than a cap:
+     with only a cap it shrinks to the page it just paginated, which shrinks the
+     height the next measurement sees. */
+  flex: auto;
+  min-height: 0;
   position: relative;
   border: 1px solid var(--calamus-border);
   border-radius: 12px;
@@ -389,7 +419,7 @@
   padding: 1.4rem;
   display: flex;
   flex-direction: column;
-  max-height: min(78vh, 860px);
+  max-height: var(--calamus-max-height, min(78vh, 860px));
 }
 
 .calamus__book-body {
