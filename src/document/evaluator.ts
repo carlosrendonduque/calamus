@@ -58,5 +58,6 @@ export {
   resolvePhraseWithDiagnostics,
 } from "./phrase";
 
-export type { EntryAddress, Move, MoveContext } from "./state";
+export type { EntryAddress, Move } from "./types";
+export type { MoveContext } from "./state";
 export { applyMove, disciplineOf, initialState, reduce } from "./state";

@@ -1140,15 +1140,26 @@ function readGestureMoves(node: YamlNode | null, context: Context): { moves: Mov
             const value = scalar(field.value);
             if (value !== null) written[field.key] = value;
           }
-          moves.push({ kind: "add", log: grown.key, item: written as GroupItem });
+          moves.push({ kind: "add", log: grown.key, entry: written });
         }
         break;
       case "resets": {
-        const names = gesture.value.kind === "map" ? null : items(gesture.value).map((one) => text(one) ?? "");
-        // A reset returns a name to the value it opened on; returning it to some
-        // other literal value is a different gesture, and `Move` has only one.
-        if (names === null) unreadable.push(gesture.key);
-        else moves.push({ kind: "reset", names });
+        // A reset states where each name goes. `resets: [a, b]` means "back to
+        // what they opened on", which the reducer reads as an absent destination.
+        if (gesture.value.kind === "map") {
+          const variables: Record<string, Scalar | Scalar[]> = {};
+          for (const key of keysOf(gesture.value)) {
+            const field = { key, value: entry(gesture.value, key) };
+            const value = scalar(field.value);
+            if (value !== null) variables[field.key] = value;
+          }
+          moves.push({ kind: "reset", variables });
+        } else {
+          const names = items(gesture.value)
+            .map((one) => text(one))
+            .filter((name): name is string => name !== null);
+          if (names.length > 0) moves.push({ kind: "reset", names });
+        }
         break;
       }
       case "mark": {
@@ -1159,7 +1170,7 @@ function readGestureMoves(node: YamlNode | null, context: Context): { moves: Mov
           unreadable.push(gesture.key);
           break;
         }
-        moves.push({ kind: "mark", log, at, field });
+        moves.push({ kind: "mark", log, field, address: { at } });
         break;
       }
       default:

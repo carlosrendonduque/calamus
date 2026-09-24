@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import type { KeyboardEvent } from "react";
-import type { ReaderContent, ReaderLabels, ReaderProps, ReaderTheme, ReaderTransition } from "./types";
+import { useEffect, useId, useMemo, useRef, type CSSProperties } from "react";
+import type { NarrativeDocument } from "./document/types";
+import type { ReaderProps, ReaderTheme } from "./types";
+import { BookReader } from "./modes/BookReader";
 import { EditorialReader } from "./modes/EditorialReader";
 import { HypertextReader } from "./modes/HypertextReader";
-import { renderSnapPoints, turnAnimationClassName, usePager } from "./internal/pagination";
+import { ScrollReader } from "./modes/ScrollReader";
+import { TerminalReader } from "./modes/TerminalReader";
+import type { ReadingView } from "./modes/view";
 import { getReadingTimeText } from "./internal/readingTime";
 import { mergeLabels } from "./internal/labels";
-import { applyScrollAction, getScrollAction } from "./internal/keys";
+import { documentFromContent, documentFromSource, emptyDocument, wordsOf } from "./document/content";
+import { useReading } from "./document/reading";
+import { customProperties, domId, renderDocument } from "./document/render";
 
 const THEME_TO_VAR: Record<keyof ReaderTheme, string> = {
   background: "--calamus-bg",
@@ -40,275 +45,30 @@ function themeToCssVars(theme?: ReaderTheme): CSSProperties {
   return vars;
 }
 
-function renderParagraphs(body: string[]) {
-  return body.map((paragraph, index) => (
-    <p key={index} className="calamus__paragraph">
-      {paragraph}
-    </p>
-  ));
-}
+/**
+ * One document, whichever way the host supplied it.
+ *
+ * Decision 22: the flat text is the degenerate document, so `content` is not a
+ * second contract any more — it is converted and then forgotten. `source` is the
+ * authored file, read by the parser, diagnostics and all; `document` is the same
+ * thing already read.
+ */
+function useDocument(props: Pick<ReaderProps, "document" | "source" | "content">): NarrativeDocument {
+  const { document: given, source, content } = props;
 
-function TerminalMode({ content, labels }: { content: ReaderContent; labels: Required<ReaderLabels> }) {
-  const sourceName = content.subtitle ?? "document.txt";
-  const containerRef = useRef<HTMLElement | null>(null);
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    const element = containerRef.current;
-    if (!element) {
-      return;
-    }
-
-    const updateProgress = () => {
-      const maxScrollable = element.scrollHeight - element.clientHeight;
-
-      if (maxScrollable <= 0) {
-        setProgress(0);
-        return;
-      }
-
-      setProgress(Math.min(1, Math.max(0, element.scrollTop / maxScrollable)));
-    };
-
-    updateProgress();
-    element.addEventListener("scroll", updateProgress, { passive: true });
-
-    const observer = new ResizeObserver(() => {
-      updateProgress();
-    });
-
-    observer.observe(element);
-
-    return () => {
-      element.removeEventListener("scroll", updateProgress);
-      observer.disconnect();
-    };
-  }, [content.body, content.subtitle, content.title]);
-
-  const handleTerminalKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    const element = containerRef.current;
-    if (!element) {
-      return;
-    }
-
-    const action = getScrollAction(event.key, event.shiftKey);
-    if (!action) {
-      return;
-    }
-
-    event.preventDefault();
-    applyScrollAction(element, action);
-  };
-
-  const percent = Math.round(progress * 100);
-
-  return (
-    <section
-      ref={containerRef}
-      className="calamus calamus--terminal"
-      aria-label={labels.readingMode("terminal")}
-      tabIndex={0}
-      onKeyDown={handleTerminalKeyDown}
-    >
-      <header className="calamus__terminal-header">$ cat {sourceName}</header>
-      <h1 className="calamus__title"># {content.title}</h1>
-      {renderParagraphs(content.body)}
-      <footer className="calamus__eof">[EOF]</footer>
-      <div className="calamus__terminal-progress" aria-hidden="true">
-        <div className="calamus__terminal-progress-line">
-          <div
-            className="calamus__terminal-progress-fill"
-            style={{ width: `${percent}%` }}
-          />
-        </div>
-        <span className="calamus__terminal-progress-value">{`(${percent}%)`}</span>
-      </div>
-      {/* Text equivalent of the bar above, readable on demand rather than announced on every scroll. */}
-      <p className="calamus__sr-only">{labels.progress(percent)}</p>
-    </section>
-  );
-}
-
-function ScrollMode({
-  content,
-  readingTimeText,
-  labels
-}: {
-  content: ReaderContent;
-  readingTimeText: string;
-  labels: Required<ReaderLabels>;
-}) {
-  const containerRef = useRef<HTMLElement | null>(null);
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    const element = containerRef.current;
-    if (!element) {
-      return;
-    }
-
-    const updateProgress = () => {
-      const maxScrollable = element.scrollHeight - element.clientHeight;
-
-      if (maxScrollable <= 0) {
-        setProgress(0);
-        return;
-      }
-
-      setProgress(Math.min(1, Math.max(0, element.scrollTop / maxScrollable)));
-    };
-
-    updateProgress();
-    element.addEventListener("scroll", updateProgress, { passive: true });
-
-    const observer = new ResizeObserver(() => {
-      updateProgress();
-    });
-
-    observer.observe(element);
-
-    return () => {
-      element.removeEventListener("scroll", updateProgress);
-      observer.disconnect();
-    };
-  }, [content.body, content.subtitle, content.title]);
-
-  const handleScrollKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    const element = containerRef.current;
-    if (!element) {
-      return;
-    }
-
-    const action = getScrollAction(event.key, event.shiftKey);
-    if (!action) {
-      return;
-    }
-
-    event.preventDefault();
-    applyScrollAction(element, action);
-  };
-
-  return (
-    <article
-      ref={containerRef}
-      className="calamus calamus--scroll"
-      aria-label={labels.readingMode("scroll")}
-      tabIndex={0}
-      onKeyDown={handleScrollKeyDown}
-    >
-      <div className="calamus__scroll-progress-track" aria-hidden="true">
-        <div className="calamus__scroll-progress-fill" style={{ width: `${progress * 100}%` }} />
-      </div>
-      {/* Text equivalent of the bar above, readable on demand rather than announced on every scroll. */}
-      <p className="calamus__sr-only">{labels.progress(Math.round(progress * 100))}</p>
-      <header className="calamus__head">
-        <p className="calamus__mode-label">reader --scroll</p>
-        <h1 className="calamus__title">{content.title}</h1>
-        <p className="calamus__reading-time">{readingTimeText}</p>
-        {content.subtitle ? <p className="calamus__subtitle">{content.subtitle}</p> : null}
-      </header>
-      <div className="calamus__body">{renderParagraphs(content.body)}</div>
-    </article>
-  );
-}
-
-function BookMode({
-  content,
-  transition,
-  labels
-}: {
-  content: ReaderContent;
-  transition: ReaderTransition;
-  labels: Required<ReaderLabels>;
-}) {
-  const pager = usePager(transition, content.body);
-  const {
-    pagerRef,
-    flowRef,
-    totalPages,
-    currentPage,
-    direction,
-    hasTurned,
-    turnTick,
-    goPrevious,
-    goNext,
-    handleKeyDown
-  } = pager;
-
-  const canGoPrevious = currentPage > 0;
-  const canGoNext = currentPage < totalPages - 1;
-  const pageStatus = labels.page(currentPage + 1, totalPages);
-  const snapPoints = useMemo(() => renderSnapPoints(totalPages), [totalPages]);
-
-  return (
-    <section
-      className="calamus calamus--book-frame"
-      aria-label={labels.readingMode("book")}
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-    >
-      <div className="calamus__book-page">
-        <header className="calamus__head calamus__head--book">
-          <p className="calamus__mode-label">less --book</p>
-          <h1 className="calamus__title">{content.title}</h1>
-          {content.subtitle ? <p className="calamus__subtitle">{content.subtitle}</p> : null}
-        </header>
-        {/*
-          The page is a window one page wide over a flow that holds the whole
-          chapter. CSS columns decide where the breaks fall, the window scrolls
-          and snaps to them, and the only thing JavaScript measures is how many
-          windows wide the flow turned out to be.
-        */}
-        <div
-          ref={pagerRef}
-          className="calamus__body calamus__book-body calamus__pager"
-          data-current-page={currentPage + 1}
-          data-total-pages={totalPages}
-          data-nav-direction={direction}
-        >
-          <div
-            ref={flowRef}
-            className={`calamus__pager-flow calamus__book-page-content ${turnAnimationClassName(
-              transition,
-              turnTick,
-              "calamus__book-page-content"
-            )}`}
-          >
-            {renderParagraphs(content.body)}
-          </div>
-          {snapPoints}
-        </div>
-        <div className="calamus__book-nav" role="group" aria-label={labels.pageNavigation}>
-          <button
-            type="button"
-            className="calamus__book-nav-button"
-            onClick={goPrevious}
-            disabled={!canGoPrevious}
-            aria-label={labels.previousPage}
-          >
-            ←
-          </button>
-          <span className="calamus__book-nav-status">{pageStatus}</span>
-          <span className="calamus__sr-only" role="status" aria-live="polite">
-            {hasTurned ? pageStatus : ""}
-          </span>
-          <button
-            type="button"
-            className="calamus__book-nav-button"
-            onClick={goNext}
-            disabled={!canGoNext}
-            aria-label={labels.nextPage}
-          >
-            →
-          </button>
-        </div>
-      </div>
-    </section>
-  );
+  return useMemo(() => {
+    if (given) return given;
+    if (typeof source === "string") return documentFromSource(source).document;
+    if (content) return documentFromContent(content);
+    return emptyDocument();
+  }, [given, source, content]);
 }
 
 export function Reader({
   content,
+  document: given,
+  source,
+  registry,
   mode = "scroll",
   theme,
   className,
@@ -316,37 +76,149 @@ export function Reader({
   children,
   labels,
   lang,
-  transition = "fade"
+  transition = "fade",
+  onDiagnostics,
+  opens
 }: ReaderProps) {
+  const document = useDocument({ document: given, source, content });
+  const reading = useReading(document, opens);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  // A stable prefix per mounted reader. Ids the document writes are the
+  // author's; two readings of one document on one page must not both claim them,
+  // and neither may shadow an id the host already uses. `useId` and not a
+  // counter, because the README promises the reader is safe on the server and a
+  // counter gives the server and the client two different sets of ids. The
+  // colons `useId` surrounds its value with are legal in an id and awkward in a
+  // selector, so they come off here rather than being escaped everywhere.
+  const prefix = `calamus${useId().replace(/[^A-Za-z0-9_-]/g, "")}`;
+
+  const mergedLabels = mergeLabels(labels);
+
+  const rendered = renderDocument({
+    document,
+    state: reading.state,
+    registry,
+    shown: reading.shown,
+    onGesture: reading.perform,
+    revision: reading.revision,
+    motion: prefersReducedMotion() ? "reduce" : "full",
+    idPrefix: prefix,
+    holder: reading.holder
+  });
+
+  // Diagnostics are data, handed over rather than logged: a library that writes
+  // to the console of a page it is embedded in is a library that cannot be
+  // embedded twice.
+  const diagnostics = rendered.diagnostics;
+
+  useEffect(() => {
+    if (onDiagnostics && diagnostics.length > 0) {
+      onDiagnostics(diagnostics);
+    }
+    // The diagnostics of one render, reported once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reading.revision, document]);
+
+  /**
+   * The focus, which the library moves and a slot never does.
+   *
+   * `:go{show=… focus=true}` is a reveal that carries the focus, and `back-up`
+   * is the same move in reverse: it names the span it left, which is what
+   * `Inline.affordance.id` is for. Either way the element already carries a
+   * `tabIndex` of -1, so it can be reached without becoming a tab stop.
+   */
+  useEffect(() => {
+    if (!reading.focus) {
+      return;
+    }
+
+    const root = rootRef.current;
+
+    if (!root) {
+      return;
+    }
+
+    const target = root.querySelector<HTMLElement>(`#${cssEscape(domId({ prefix }, reading.focus.id))}`);
+
+    if (target) {
+      target.focus({ preventScroll: false });
+    }
+  }, [reading.focus, prefix]);
+
+  const readingTimeText = getReadingTimeText(
+    { title: document.title, body: wordsOf(document) },
+    mergedLabels.readingTime
+  );
+
+  /**
+   * The one announcer, and decision 14b entire.
+   *
+   * It is a separate hidden region rather than the visible status line, and it
+   * is **empty until the reader's first real gesture**, because mounting renders
+   * `Page 1 of 1` and re-paginates a frame later: a live line would announce a
+   * layout calculation as if the reader had navigated. What it says is the prose
+   * the author declared on the move (`note:`), and failing that the text of the
+   * blocks the author marked `live` — never a string the library invented, and
+   * never one a registry entry invented.
+   */
+  const announcer = (
+    <div className="calamus__sr-only" role="status" aria-live="polite" aria-atomic="true">
+      {reading.hasMoved ? (reading.announcement ?? rendered.live) : ""}
+    </div>
+  );
+
+  const view: ReadingView = {
+    title: document.title,
+    subtitle: document.subtitle,
+    body: rendered.body,
+    controls: rendered.controls,
+    exits: rendered.exits,
+    announcer,
+    readingTimeText,
+    labels: mergedLabels,
+    transition,
+    revision: reading.revision,
+    children
+  };
+
   const mergedStyle = {
     ...themeToCssVars(theme),
+    // Every declared variable, live, as a custom property in the root's scope.
+    // The arithmetic falls in CSS (decision 29), so what crosses is the value
+    // and the unit the author declared, and nothing computed.
+    ...customProperties(document, reading.state),
     ...style
   };
 
   const rootClassName = ["calamus-root", className].filter(Boolean).join(" ");
-  const mergedLabels = mergeLabels(labels);
-  const readingTimeText = getReadingTimeText(content, mergedLabels.readingTime);
 
   return (
-    <div className={rootClassName} style={mergedStyle} lang={lang}>
-      {mode === "terminal" ? <TerminalMode content={content} labels={mergedLabels} /> : null}
-      {mode === "scroll" ? (
-        <ScrollMode content={content} readingTimeText={readingTimeText} labels={mergedLabels} />
-      ) : null}
-      {mode === "book" ? <BookMode content={content} transition={transition} labels={mergedLabels} /> : null}
-      {mode === "editorial" ? (
-        <EditorialReader
-          content={content}
-          readingTimeText={readingTimeText}
-          transition={transition}
-          labels={mergedLabels}
-        />
-      ) : null}
-      {mode === "hypertext" ? (
-        <HypertextReader content={content} labels={mergedLabels}>
-          {children}
-        </HypertextReader>
-      ) : null}
+    <div ref={rootRef} className={rootClassName} style={mergedStyle} lang={lang ?? document.lang}>
+      {mode === "terminal" ? <TerminalReader {...view} /> : null}
+      {mode === "scroll" ? <ScrollReader {...view} /> : null}
+      {mode === "book" ? <BookReader {...view} /> : null}
+      {mode === "editorial" ? <EditorialReader {...view} /> : null}
+      {mode === "hypertext" ? <HypertextReader {...view} /> : null}
     </div>
   );
+}
+
+/** One source for reduced motion, in JS as in CSS (contrato-ranuras §5.2.5). */
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/** `CSS.escape` where it exists, and a conservative fallback where it does not.
+ *  An authored id may hold anything the author typed. */
+function cssEscape(value: string): string {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(value);
+  }
+
+  return value.replace(/[^\w-]/g, (character) => `\\${character}`);
 }

@@ -619,3 +619,280 @@
     transition: none;
   }
 }
+
+/* ==========================================================================
+   The document: blocks, affordances, controls and slots.
+
+   Everything below styles what `render.tsx` emits. Two rules govern it:
+
+   - **No authored name is a selector.** A mark kind, a role, a voice, a `as:`
+     and a placement all arrive as `data-*` and none of them is matched here.
+     The author's vocabulary is the author's (decision 30); a host styles it
+     with `[data-mark="…"]` from outside, where the vocabulary is known.
+   - **The arithmetic falls in CSS.** A declared variable arrives as
+     `--calamus-var-<name>` in the root's scope, with the unit the author
+     declared, and a slot's geometry is built from it here rather than in JS
+     (decision 29, contrato-ranuras §6).
+   ========================================================================== */
+
+.calamus__heading {
+  margin: 1.6rem 0 0.8rem;
+  font-family: var(--calamus-serif-font);
+  font-weight: 600;
+  line-height: 1.3;
+  /* `break-after: avoid` keeps a heading off the bottom of a column; the flow
+     is a multi-column scrollport and the break is the engine's to place. */
+  break-after: avoid;
+}
+
+.calamus__heading[data-level="1"] {
+  font-size: clamp(1.25rem, 2.4cqi, 1.6rem);
+}
+
+.calamus__heading[data-level="2"] {
+  font-size: clamp(1.1rem, 2cqi, 1.3rem);
+}
+
+.calamus__heading[data-level="3"] {
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+}
+
+/* A blank measure is grammar rather than styling, so it takes real height and
+   the count governs it. One line is one line of the prose around it. */
+.calamus__blank {
+  height: calc(var(--calamus-blank-lines, 1) * 1.9em);
+}
+
+/* An island nothing resolved: kept in the tree, out of the reading. `hidden`
+   already does this; the rule is here so that a host cannot un-hide it by
+   accident with a `display` of their own on the class. */
+.calamus__unknown[hidden] {
+  display: none;
+}
+
+/* --- Loops ---------------------------------------------------------------- */
+
+.calamus__each {
+  margin: 0 0 1.2rem;
+}
+
+.calamus__each-heading {
+  margin: 0 0 0.6rem;
+  font-size: 0.92rem;
+  color: var(--calamus-muted);
+  letter-spacing: 0.02em;
+  break-after: avoid;
+}
+
+.calamus__each-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calamus__each-item {
+  margin: 0 0 0.9rem;
+}
+
+.calamus__each-item:focus-visible {
+  outline: 2px solid var(--calamus-accent);
+  outline-offset: 3px;
+}
+
+.calamus__each-item[aria-current] {
+  box-shadow: inset 2px 0 0 var(--calamus-accent);
+  padding-inline-start: 0.8rem;
+}
+
+/* --- Regions -------------------------------------------------------------- */
+
+.calamus__region:focus-visible {
+  outline: 2px solid var(--calamus-accent);
+  outline-offset: 3px;
+}
+
+/* --- Affordances ---------------------------------------------------------- */
+
+/* Inside a sentence an affordance is a word of the sentence, so it inherits the
+   prose entirely and is marked only by its underline. It is a real button: the
+   reset below is what makes a button read as prose, rather than a span being
+   dressed up as a control. */
+.calamus__affordance {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 0.18em;
+  text-decoration-color: var(--calamus-accent);
+}
+
+.calamus__affordance:hover {
+  color: var(--calamus-accent);
+}
+
+.calamus__affordance:focus-visible {
+  outline: 2px solid var(--calamus-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* An affordance whose condition is false keeps its words and loses its button,
+   so it has to look like the prose it now is. */
+.calamus__affordance--closed {
+  text-decoration: none;
+  color: inherit;
+}
+
+.calamus__affordance[aria-expanded="true"],
+.calamus__affordance[aria-pressed="true"] {
+  text-decoration-style: double;
+}
+
+.calamus__exits {
+  margin: 1.4rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--calamus-border);
+  padding-top: 0.9rem;
+  break-inside: avoid;
+}
+
+.calamus__exit {
+  margin: 0 0 0.5rem;
+}
+
+.calamus__exit-link {
+  color: var(--calamus-accent);
+  font-size: 0.98rem;
+}
+
+.calamus__exit-note {
+  color: var(--calamus-muted);
+  font-size: 0.86rem;
+}
+
+/* --- Controls ------------------------------------------------------------- */
+
+.calamus__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem 1.4rem;
+  align-items: center;
+  margin: 0 0 1.2rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--calamus-panel);
+  background: color-mix(in srgb, var(--calamus-panel), transparent 25%);
+  border: 1px solid var(--calamus-border);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.calamus__control {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.calamus__control-label {
+  color: var(--calamus-muted);
+  letter-spacing: 0.01em;
+}
+
+.calamus__control-range {
+  /* A floor rather than a width: the range control of the demo overflowed four
+     examples at its intrinsic size, and a reader panel is narrower still. */
+  min-inline-size: 8rem;
+  accent-color: var(--calamus-accent);
+}
+
+.calamus__control-value {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.84rem;
+  color: var(--calamus-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.calamus__control-toggle,
+.calamus__control-option input {
+  accent-color: var(--calamus-accent);
+}
+
+.calamus__control-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.calamus__control-text {
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--calamus-fg);
+  background: var(--calamus-bg);
+  border: 1px solid var(--calamus-border);
+  border-radius: 3px;
+  padding: 0.25rem 0.4rem;
+  max-inline-size: 100%;
+}
+
+/* A control that stands on its own is a button, not a word of the prose. */
+.calamus__control-button {
+  appearance: none;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--calamus-fg);
+  background: var(--calamus-panel);
+  border: 1px solid var(--calamus-border);
+  border-radius: 3px;
+  padding: 0.35rem 0.8rem;
+  margin: 0 0.4rem 0.8rem 0;
+  cursor: pointer;
+  break-inside: avoid;
+}
+
+.calamus__control-button:hover {
+  border-color: var(--calamus-accent);
+  color: var(--calamus-accent);
+}
+
+.calamus__control-button:focus-visible {
+  outline: 2px solid var(--calamus-accent);
+  outline-offset: 2px;
+}
+
+/* --- Slots ---------------------------------------------------------------- */
+
+/* A slot renders inside the root, where every `--calamus-*` is in scope. That
+   inheritance is the whole style contract (contrato-ranuras §6), which is also
+   why a slot cannot render into a portal outside the root: the tokens are
+   declared here and nowhere else, so outside they do not resolve. */
+.calamus__slot {
+  display: block;
+}
+
+span.calamus__slot {
+  display: inline;
+}
+
+/* A view whose name nothing resolved leaves residue on purpose: its region's
+   prose is still there, and the reader can see that a drawing is missing. */
+.calamus__slot--missing {
+  display: contents;
+}
+
+/* --- Marks ---------------------------------------------------------------- */
+
+/* Unstyled by design. A mark kind is the author's word and the library has no
+   mark classes of its own, so what a mark looks like comes from a `marks` entry
+   or from the host's own rule on `[data-mark="…"]`. Only the hook is here. */
+.calamus__mark {
+  display: inline;
+}

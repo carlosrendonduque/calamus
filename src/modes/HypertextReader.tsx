@@ -1,21 +1,17 @@
 import { useRef } from "react";
-import type { KeyboardEvent, ReactNode } from "react";
-import type { ReaderContent, ReaderLabels } from "../types";
+import type { KeyboardEvent } from "react";
+import type { ReadingView } from "./view";
 import { applyScrollAction, getScrollAction } from "../internal/keys";
 
-type HypertextReaderProps = {
-  content: ReaderContent;
-  labels: Required<ReaderLabels>;
-  children?: ReactNode;
-};
-
-export function HypertextReader({ content, labels, children }: HypertextReaderProps) {
-  const label = content.subtitle
-    ? `reader --hypertext ${content.subtitle}`
-    : "reader --hypertext";
-
+/**
+ * `hypertext` used to be the odd one: it ignored `content.body` and rendered
+ * `children`. After decision 22 it is the ordinary one — it renders the document
+ * like the other four — and `children` becomes what it should always have been:
+ * a host's own nodes, after the reading rather than instead of it.
+ */
+export function HypertextReader({ title, subtitle, body, controls, exits, announcer, labels, children }: ReadingView) {
+  const label = subtitle ? `reader --hypertext ${subtitle}` : "reader --hypertext";
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const hasChildren = children !== undefined && children !== null;
 
   const handleHypertextKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     // Host children own their own keys; only scroll when the region itself has focus.
@@ -24,11 +20,13 @@ export function HypertextReader({ content, labels, children }: HypertextReaderPr
     }
 
     const element = contentRef.current;
+
     if (!element) {
       return;
     }
 
     const action = getScrollAction(event.key, event.shiftKey);
+
     if (!action) {
       return;
     }
@@ -46,15 +44,15 @@ export function HypertextReader({ content, labels, children }: HypertextReaderPr
     >
       <header className="calamus__head">
         <p className="calamus__mode-label">{label}</p>
-        <h1 className="calamus__title">{content.title}</h1>
+        <h1 className="calamus__title">{title}</h1>
       </header>
+      {controls}
       <div ref={contentRef} className="calamus__hypertext-content">
-        {hasChildren ? (
-          children
-        ) : (
-          <p className="calamus__hypertext-placeholder">no hypertext content provided</p>
-        )}
+        {body}
+        {exits}
+        {children}
       </div>
+      {announcer}
     </section>
   );
 }

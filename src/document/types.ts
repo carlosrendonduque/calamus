@@ -323,20 +323,41 @@ export type ReadingState = {
   readings: number;
 };
 
-/** What a reader's gesture asks of the document. The renderer and the evaluator
- *  must agree on this, so it belongs here rather than in either of them. */
+/** What a reader's gesture asks of the document. The renderer, the parser and
+ *  the evaluator must agree on this, so it lives here and nowhere else. This is
+ *  the reducer's shape: it was written against the corpus and mine was written
+ *  against the design note, and the corpus was right. */
+export type EntryAddress = {
+  at?: number | string;
+  match?: Record<string, Scalar>;
+  from?: "first" | "last";
+};
+
 export type Move =
+  /** A node replaces, and the trail records it again every time. */
   | { kind: "enter"; node: string }
-  | { kind: "back" }
+  /** `to: back`. The trail shortens, so `visits()` is not monotonic. */
+  | { kind: "back"; steps?: number }
   | { kind: "set"; name: string; value: Scalar | Scalar[] }
-  | { kind: "add"; log: string; item: GroupItem }
-  /** `at` is optional: a log whose discipline is `removes: last` already says
-   *  which entry goes, and asking the author to repeat it invites disagreement. */
-  | { kind: "remove"; log: string; at?: number | string }
-  | { kind: "mark"; log: string; at: number | string; field: string }
-  /** A reset returns a name to its opening value, or to a value the author
-   *  states — one document wants neither the opening two readings nor none. */
-  | { kind: "reset"; names: string[]; to?: Record<string, Scalar | Scalar[]> };
+  | { kind: "add"; log: string; entry: Record<string, Scalar> }
+  | { kind: "remove"; log: string; address?: EntryAddress }
+  /** Writing a field of an entry already written, which only `marks:` allows. */
+  | { kind: "mark"; log: string; field: string; value?: Scalar; address?: EntryAddress }
+  /** A reset states where each name goes, and a document that writes
+   *  `resets: [a, b]` is stating "back to what they opened on" — which only the
+   *  runtime knows, so it is named rather than spelled out. */
+  | {
+      kind: "reset";
+      /** Back to their opening values. */
+      names?: string[];
+      logs?: Record<string, GroupItem[] | number>;
+      variables?: Record<string, Scalar | Scalar[]>;
+      trail?: string[];
+      readings?: number;
+    }
+  | { kind: "read" }
+  /** One gesture, several effects (`moves:` in the corpus). */
+  | { kind: "gesture"; moves: Move[] };
 
 /* -------------------------------------------------------------------------- */
 /* Registry — five namespaces, because two of fourteen are not components      */

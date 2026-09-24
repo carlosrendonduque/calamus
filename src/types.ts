@@ -1,5 +1,15 @@
 import type { CSSProperties, ReactNode } from "react";
+import type { Diagnostic, NarrativeDocument, ReadingState } from "./document/types";
+import type { DocumentRegistry } from "./document/registry";
 
+/**
+ * Flat prose: a title, an optional subtitle and paragraphs.
+ *
+ * Decision 22 made this **the degenerate document** rather than a second
+ * contract. It is converted to a `NarrativeDocument` with no nodes and no
+ * directives, and from that point on every mode renders a document. Nothing in
+ * the reader branches on which of the two a host supplied.
+ */
 export type ReaderContent = {
   title: string;
   subtitle?: string;
@@ -68,11 +78,37 @@ export type ReaderLabels = Partial<{
 }>;
 
 export type ReaderProps = {
-  content: ReaderContent;
+  /** Flat prose. The degenerate document (decision 22). */
+  content?: ReaderContent;
+  /**
+   * An authored document, already read by `parse`.
+   *
+   * Identity is what tells one document from another, so a host that rebuilds
+   * this object on every render restarts the reading on every render. Memoise
+   * it, or pass `source` and let the reader memoise the parse.
+   */
+  document?: NarrativeDocument;
+  /** The authored source, read for you. Diagnostics come back through
+   *  `onDiagnostics`; nothing throws and nothing is dropped (decision 28). */
+  source?: string;
+  /**
+   * The five namespaces the host fills and the document names by name:
+   * `views`, `marks`, `orders`, `derivations`, `plurals`. The map is an
+   * argument and never a constant, which is the one lesson Storyplayer left.
+   * A name the registry cannot serve degrades by its class, never by throwing;
+   * `docs/contrato-ranuras.md` §4 is the table.
+   */
+  registry?: DocumentRegistry;
+  /** Where the reading starts, when it is not where the document says. */
+  opens?: ReadingState;
+  /** Everything the reading could not read, as data. Called after a render that
+   *  produced any; the library never writes to the console of a host's page. */
+  onDiagnostics?: (diagnostics: Diagnostic[]) => void;
   mode?: ReaderMode;
   theme?: ReaderTheme;
   className?: string;
   style?: CSSProperties;
+  /** A host's own nodes, rendered after the document in `hypertext`. */
   children?: ReactNode;
   labels?: ReaderLabels;
   /** Forwarded to the root element, so assistive tech and hyphenation get the right language. */

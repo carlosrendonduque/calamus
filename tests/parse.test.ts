@@ -1044,7 +1044,7 @@ describe("a gesture spelled out where the control stands", () => {
     expect(gestures).toEqual([
       [{ kind: "reset", names: ["book"] }],
       [{ kind: "set", name: "open", value: "" }],
-      [{ kind: "add", log: "readings", item: {} }],
+      [{ kind: "add", log: "readings", entry: {} }],
     ]);
   });
 
@@ -1056,7 +1056,7 @@ describe("a gesture spelled out where the control stands", () => {
     );
     expect(diagnostics).toEqual([]);
     const control = read.body[0] as Extract<Block, { kind: "affordance" }>;
-    expect(control.gesture).toEqual([{ kind: "mark", log: "book", at: "here", field: "struck" }]);
+    expect(control.gesture).toEqual([{ kind: "mark", log: "book", field: "struck", address: { at: "here" } }]);
     expect(control.label).toBe("Withdraw the last line");
     expect(control.when).toBeDefined();
   });

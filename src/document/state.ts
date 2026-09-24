@@ -11,44 +11,20 @@
  * comes back as the same state and a diagnostic.
  */
 
-import type { Diagnostic, GroupDef, GroupDiscipline, GroupItem, ReadingState, Scalar } from "./types";
+import type { Diagnostic, EntryAddress, GroupDef, GroupDiscipline, GroupItem, Move, ReadingState, Scalar } from "./types";
 import type { OpensLike } from "./shapes";
 import type { Reported } from "./scope";
 import { emptyState, note } from "./scope";
 
 /** Which entry of a log a move addresses. Nothing here evaluates expressions:
  *  the caller resolves the address and hands over an index, an id or a match. */
-export type EntryAddress = {
-  at?: number | string;
-  match?: Record<string, Scalar>;
-  from?: "first" | "last";
-};
-
-export type Move =
-  /** A node replaces, and the trail records it again every time. */
-  | { kind: "enter"; node: string }
-  /** `to: back`. The trail shortens, so `visits()` is not monotonic. */
-  | { kind: "back"; steps?: number }
-  | { kind: "set"; name: string; value: Scalar | Scalar[] }
-  | { kind: "add"; log: string; entry: Record<string, Scalar> }
-  | { kind: "remove"; log: string; address?: EntryAddress }
-  /** Writing a field of an entry already written, which only `marks:` allows. */
-  | { kind: "mark"; log: string; field: string; value?: Scalar; address?: EntryAddress }
-  /** A reset needs a destination: not `opens:`, not zero, but what was asked. */
-  | {
-      kind: "reset";
-      logs?: Record<string, GroupItem[] | number>;
-      variables?: Record<string, Scalar | Scalar[]>;
-      trail?: string[];
-      readings?: number;
-    }
-  | { kind: "read" }
-  /** One gesture, several effects (`moves:` in the corpus). */
-  | { kind: "gesture"; moves: Move[] };
 
 export type MoveContext = {
   /** Only the discipline is read, so a partial document is enough. */
   groups?: Record<string, Pick<GroupDef, "discipline"> | GroupDef>;
+  /** What the reading opened on, so a reset that names a value rather than
+   *  stating one has somewhere to return it to. */
+  opening?: { logs: Record<string, GroupItem[]>; variables: Record<string, Scalar | Scalar[]> };
 };
 
 const KEEPS_EVERYTHING: GroupDiscipline = { keeps: "duplicates", removes: "none", marks: [] };
@@ -162,6 +138,17 @@ function step(
 
     case "reset": {
       let next = state;
+      if (move.names && context?.opening) {
+        // Named without a destination means the value the reading opened on.
+        const opening = context.opening;
+        const logs = { ...next.logs };
+        const variables = { ...next.variables };
+        for (const name of move.names) {
+          if (name in opening.logs) logs[name] = [...opening.logs[name]];
+          if (name in opening.variables) variables[name] = opening.variables[name];
+        }
+        next = { ...next, logs, variables };
+      }
       if (move.logs) {
         const logs = { ...next.logs };
         for (const [name, target] of Object.entries(move.logs)) {

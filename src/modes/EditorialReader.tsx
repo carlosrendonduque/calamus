@@ -1,13 +1,6 @@
 import { useMemo } from "react";
-import type { ReaderContent, ReaderLabels, ReaderTransition } from "../types";
+import type { ReadingView } from "./view";
 import { renderSnapPoints, turnAnimationClassName, usePager } from "../internal/pagination";
-
-type EditorialReaderProps = {
-  content: ReaderContent;
-  readingTimeText: string;
-  transition: ReaderTransition;
-  labels: Required<ReaderLabels>;
-};
 
 /**
  * `editorial` is `book` with more than one column on the sheet, and that is now
@@ -22,9 +15,9 @@ type EditorialReaderProps = {
  * `scrollWidth / clientWidth`, which already has the columns folded into it: a
  * sheet is a scrollport wide whether it holds one column or four.
  */
-export function EditorialReader({ content, readingTimeText, transition, labels }: EditorialReaderProps) {
-  const sourceName = content.subtitle ? `viewer --editorial ${content.subtitle}` : "viewer --editorial";
-  const pager = usePager(transition, content.body);
+export function EditorialReader({ title, subtitle, body, controls, exits, announcer, readingTimeText, transition, labels, revision }: ReadingView) {
+  const sourceName = subtitle ? `viewer --editorial ${subtitle}` : "viewer --editorial";
+  const pager = usePager(transition, revision);
   const {
     pagerRef,
     flowRef,
@@ -52,9 +45,10 @@ export function EditorialReader({ content, readingTimeText, transition, labels }
     >
       <header className="calamus__head">
         <p className="calamus__mode-label">{sourceName}</p>
-        <h1 className="calamus__title">{content.title}</h1>
+        <h1 className="calamus__title">{title}</h1>
         <p className="calamus__reading-time">{readingTimeText}</p>
       </header>
+      {controls}
 
       <div
         ref={pagerRef}
@@ -71,11 +65,8 @@ export function EditorialReader({ content, readingTimeText, transition, labels }
             "calamus__editorial-sheet-content"
           )}`}
         >
-          {content.body.map((paragraph, index) => (
-            <p key={index} className="calamus__paragraph">
-              {paragraph}
-            </p>
-          ))}
+          {body}
+          {exits}
         </div>
         {snapPoints}
       </div>
@@ -103,6 +94,7 @@ export function EditorialReader({ content, readingTimeText, transition, labels }
           →
         </button>
       </div>
+      {announcer}
     </section>
   );
 }
