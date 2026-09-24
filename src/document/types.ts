@@ -61,7 +61,9 @@ export type GroupDiscipline = {
   marks: string[];
 };
 
-export type GroupItem = { id: string } & Record<string, Scalar>;
+/** A declared item names itself; a log entry has no name until it is written,
+ *  so the id is optional and the runtime supplies the position. */
+export type GroupItem = { id?: string } & Record<string, Scalar>;
 
 export type GroupDef = {
   /** Field names. The author's vocabulary; the schema never reads them. */
@@ -115,7 +117,9 @@ export type PhraseDef = {
   plural?: string;
   /** Joining a list: the author supplies the separators literally, because
    *  Spanish turns "y" into "e" before i- and the library must never choose. */
-  list?: { of: string; field: string; sep: string; last?: string };
+  /** `field` is absent when the items have no single nameable field -- they may
+   *  be sentences built from several. `sep` defaults to ", ". */
+  list?: { of: string; field?: string; sep?: string; last?: string };
   /** A phrase with nothing to choose between is a single unconditional clause. */
   say?: string;
   cases?: PhraseCase[];
@@ -137,6 +141,14 @@ export type VariableDef = {
   unit?: string;
   /** Prose someone reads. Ten of nineteen documents label a control. */
   label?: string;
+  /** Where the control sits, and how its steps and rows are drawn. */
+  placement?: string;
+  step?: number;
+  rows?: number;
+  /** Prose again: an option's label is read, so it may be a phrase name. */
+  optionLabels?: Record<string, string>;
+  /** The options are the items of a group the author declared. */
+  optionsFrom?: string;
   persist?: boolean;
 };
 
@@ -192,14 +204,29 @@ export type Block =
       order?: string;
       /** Reader-facing prose when nothing matches. Losing it loses prose. */
       empty?: Block[];
+      /** A loop and a region carry what a paragraph carries. `heading` and
+       *  `label` here are prose: "Your route so far". */
+      attrs?: BlockAttrs;
+      heading?: string;
+      label?: string;
       body: Block[];
     }
   /** A named region, revealed in place. Distinct from a node, which replaces. */
-  | { kind: "region"; id: string; body: Block[] }
+  | { kind: "region"; id: string; attrs?: BlockAttrs; body: Block[] }
   /** A registry view occupying a block. */
   | { kind: "slot"; name: string; params: Record<string, unknown>; body: Block[] }
   /** A control or a button standing on its own. Eight of nineteen end in one. */
-  | { kind: "affordance"; action: "go" | "show" | "do"; target: string; label: string; when?: Expression }
+  | {
+      kind: "affordance";
+      action: "go" | "show" | "do";
+      /** A declared move, or the node or region this reaches. */
+      target: string;
+      label: string;
+      when?: Expression;
+      /** A gesture spelled out at the call site rather than declared: seven of
+       *  the eight controls in the corpus do this. */
+      gesture?: Move[];
+    }
   /** Blank measure, which in Mallarmé is grammar rather than styling. */
   | { kind: "blank"; lines: number }
   /** An island whose name nothing resolved: kept verbatim and re-serialised. */
@@ -261,7 +288,10 @@ export type NarrativeDocument = {
   /** Author-declared vocabularies. The schema stores them and reads none of
    *  them: a mark kind, a move name and a control are the author's words. */
   marks: Record<string, Record<string, Scalar>>;
-  moves: Record<string, { writes: string[] }>;
+  /** A move names what it may write, and declares the rest of its gesture
+   *  beside it — what it resets, focuses, shows, and the prose a screen reader
+   *  hears. Those keys are the author's, stored and never read by the schema. */
+  moves: Record<string, { writes: string[] } & Record<string, unknown>>;
   controls: Record<string, Record<string, Scalar>>;
   /** A document with no nodes is the flat case: prose in order (decision 22). */
   nodes: NodeDef[];

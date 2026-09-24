@@ -227,11 +227,11 @@ describe("islands", () => {
   });
 
   it("keeps an island it cannot name, byte for byte", () => {
-    const raw = ["```calamus", "controls:", "  - resets: book", "    label: Close the book", "```"].join("\n");
+    const raw = ["```calamus", "engraving:", "  - plate: iv", "    caption: The north stair", "```"].join("\n");
     const { document, diagnostics } = parse(["---", "title: T", "---", "", raw].join("\n"));
     expect(errorsOf(diagnostics)).toEqual([]);
     expect(document.body).toEqual([{ kind: "unknown", raw }]);
-    expect(diagnostics.some((d) => d.severity === "warning" && d.message.includes("controls"))).toBe(true);
+    expect(diagnostics.some((d) => d.severity === "warning" && d.message.includes("engraving"))).toBe(true);
   });
 });
 
@@ -413,5 +413,471 @@ describe("failing towards legible", () => {
     for (const source of ["", "---", "---\n---", ":with{", "{", ":mark[", "```calamus", "---\ntitle: [\n---", "\u0000"]) {
       expect(() => parse(source)).not.toThrow();
     }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* What the contract holds and the parser had not caught up with               */
+/* -------------------------------------------------------------------------- */
+
+const document = (...lines: string[]) => parse(lines.join("\n"));
+
+const warningsOf = (diagnostics: Diagnostic[]) =>
+  diagnostics.filter((diagnostic) => diagnostic.severity === "warning");
+
+describe("nodes and exits", () => {
+  it("keeps a node's title and an exit's note and resets", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "---",
+      "",
+      "```calamus",
+      "node: platform",
+      "title: Platform six",
+      "exits:",
+      '  - { to: stairs, label: Take the stairs down, note: "{seen}" }',
+      "  - { to: start, label: Return to the start, resets: trail }",
+      "```",
+      "",
+      "Aquí.",
+    );
+    expect(diagnostics).toEqual([]);
+    const node: NodeDef = read.nodes[0];
+    expect(node.title).toBe("Platform six");
+    expect(node.exits[0].note).toBe("{seen}");
+    expect(node.exits[0].resets).toBeUndefined();
+    expect(node.exits[1].resets).toEqual(["trail"]);
+  });
+
+  it("reads a node reached by a path, not only one named outright", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "phrases:",
+      "  seen:",
+      "    of: exit",
+      "    cases:",
+      '      - { when: "visited(exit.to)", say: seen }',
+      "---",
+      "",
+      "P.",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.phrases.seen.cases![0].when).toEqual({ kind: "visited", node: "exit.to" });
+  });
+});
+
+describe("paragraph attributes", () => {
+  it("keeps the politeness an author asks a live region for", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "---",
+      "",
+      ":with{live=polite}",
+      "Uno.",
+      "",
+      ":with{live}",
+      "Dos.",
+      "",
+      ":with{live=false}",
+      "Tres.",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(paragraphs(read.body).map((block) => block.attrs.live)).toEqual(["polite", true, false]);
+  });
+
+  it("keeps a role the author names, which is not a weight", () => {
+    const { document: read, diagnostics } = document("---", "title: T", "---", "", ":with{role=time}", "03:14");
+    expect(diagnostics).toEqual([]);
+    expect(paragraphs(read.body)[0].attrs).toEqual({ role: "time" });
+  });
+});
+
+describe("the expression operators the contract holds", () => {
+  const expressionOf = (source: string) => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "names:",
+      `  n: ${source}`,
+      "---",
+      "",
+      "P.",
+    );
+    expect(diagnostics).toEqual([]);
+    const name = read.names.n;
+    return name.kind === "expression" ? name.of : null;
+  };
+
+  it("reads `first` and `last` over a group, filtered or whole", () => {
+    expect(expressionOf("first(lenses where id == lens)")).toEqual({
+      kind: "first",
+      group: "lenses",
+      where: { kind: "compare", op: "==", left: { kind: "read", path: "id" }, right: { kind: "read", path: "lens" } },
+    });
+    expect(expressionOf("last(chain)")).toEqual({ kind: "last", group: "chain" });
+  });
+
+  it("reads `in` as membership, which takes a group and a value", () => {
+    expect(expressionOf('"in(held, item)"')).toEqual({
+      kind: "in",
+      group: "held",
+      value: { kind: "read", path: "item" },
+    });
+  });
+
+  it("nests `in` inside the filter of another call", () => {
+    expect(expressionOf('"first(exhibits where not in(read, item))"')).toEqual({
+      kind: "first",
+      group: "exhibits",
+      where: { kind: "not", of: { kind: "in", group: "read", value: { kind: "read", path: "item" } } },
+    });
+  });
+
+  it("reads `persisted`, named or asking after the store itself", () => {
+    expect(expressionOf("persisted()")).toEqual({ kind: "persisted", name: "" });
+    expect(expressionOf("persisted(note)")).toEqual({ kind: "persisted", name: "note" });
+  });
+
+  it("reads a path of more than one dot as one path", () => {
+    expect(expressionOf("item.note.child")).toEqual({ kind: "read", path: "item.note.child" });
+    const { document: read, diagnostics } = document("---", "title: T", "---", "", "Dice {item.note.mark}.");
+    expect(diagnostics).toEqual([]);
+    expect(paragraphs(read.body)[0].content[1]).toEqual({ kind: "interpolation", path: "item.note.mark" });
+  });
+});
+
+describe("the declared vocabularies", () => {
+  it("keeps a mark declaration whole and follows only its registry name", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "marks:",
+      '  withdrawn: { as: strike, when: "item.struck", note: withdrawn }',
+      "---",
+      "",
+      "P.",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.marks.withdrawn).toEqual({ as: "strike", when: "item.struck", note: "withdrawn" });
+    expect(read.uses).toContainEqual({ name: "strike", kind: "marks" });
+  });
+
+  it("keeps what a move writes, and the rest of the gesture beside it", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "moves:",
+      "  cross-to:",
+      "    writes: [book]",
+      '    logs: { book: { place: "{item.place}" } }',
+      "---",
+      "",
+      "P.",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.moves["cross-to"].writes).toEqual(["book"]);
+    expect(read.moves["cross-to"]).toMatchObject({ logs: { book: { place: "{item.place}" } } });
+  });
+
+  it("keeps a condition on a mark inside a sentence", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "---",
+      "",
+      "El inventario lista una :mark[puerta]{kind=kept when=keeping} en el rellano.",
+    );
+    expect(diagnostics).toEqual([]);
+    const mark = paragraphs(read.body)[0].content[1] as Extract<Inline, { kind: "mark" }>;
+    expect(mark.markKind).toBe("kept");
+    expect(mark.when).toEqual({ kind: "read", path: "keeping" });
+  });
+});
+
+describe("groups, names, phrases and variables", () => {
+  it("reads a group that is a filtered view of another", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "groups:",
+      '  said: { of: account, where: "trust >= keep" }',
+      "---",
+      "",
+      "P.",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.groups.said.derivedFrom).toEqual({
+      group: "account",
+      where: { kind: "compare", op: ">=", left: { kind: "read", path: "trust" }, right: { kind: "read", path: "keep" } },
+    });
+    expect(read.groups.said.items).toEqual([]);
+  });
+
+  it("keeps the author's field carrying the answer of a grouping", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "names:",
+      "  broken: { over: chosen, by: claim, answer: holds, test: split }",
+      "---",
+      "",
+      "P.",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.names.broken).toEqual({
+      kind: "grouped",
+      over: "chosen",
+      by: "claim",
+      answer: "holds",
+      test: "split",
+    });
+  });
+
+  it("reads `is: true` as the sugar it is, without writing it out", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "phrases:",
+      "  label:",
+      "    on: inside",
+      "    cases:",
+      "      - { is: true, say: Hide these words again }",
+      "      - { say: Reveal the redacted words }",
+      "---",
+      "",
+      "P.",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.phrases.label.cases![0]).toEqual({ is: true, say: "Hide these words again" });
+  });
+
+  it("reads a joined list in the nested form the contract holds", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "phrases:",
+      "  closed-behind:",
+      "    list:",
+      "      of: taken",
+      "      field: name",
+      '      sep: ", "',
+      "    cases:",
+      '      - { say: "{closed-behind.list}" }',
+      "---",
+      "",
+      "P.",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.phrases["closed-behind"].list).toEqual({ of: "taken", field: "name", sep: ", " });
+  });
+
+  it("reads the flat spelling of a joined list as the same thing, and says so", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "phrases:",
+      "  joined:",
+      "    list: taken",
+      "    field: name",
+      '    sep: ", "',
+      '    last: ", and "',
+      "    cases:",
+      '      - { say: "{joined.list}" }',
+      "---",
+      "",
+      "P.",
+    );
+    expect(errorsOf(diagnostics)).toEqual([]);
+    expect(read.phrases.joined.list).toEqual({ of: "taken", field: "name", sep: ", ", last: ", and " });
+    expect(warningsOf(diagnostics)).toHaveLength(1);
+  });
+
+  it("keeps the label of a control, which is prose someone reads", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "variables:",
+      "  gutter:",
+      "    type: number",
+      "    default: 28",
+      "    control: range",
+      "    unit: px",
+      "    label: Cuánto se ha borrado",
+      "---",
+      "",
+      "P.",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.variables.gutter).toEqual({
+      type: "number",
+      default: 28,
+      control: "range",
+      unit: "px",
+      label: "Cuánto se ha borrado",
+    });
+  });
+
+  it("opens with a log already holding entries and a variable already moved", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "opens:",
+      "  readings: 2",
+      "  logs:",
+      "    chosen: [{ door: north }]",
+      "    readings: 2",
+      "  variables:",
+      "    note: Una línea de antes.",
+      "---",
+      "",
+      "P.",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.opens).toEqual({
+      readings: 2,
+      logs: { chosen: [{ door: "north", id: "0" }], readings: 2 },
+      variables: { note: "Una línea de antes." },
+    });
+  });
+});
+
+describe("the islands the format opens", () => {
+  it("gives an `each` island its order and the prose of its empty branch", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "---",
+      "",
+      "```calamus",
+      "each: exits",
+      "order: unstable",
+      "empty: |",
+      "  Ya no queda nada que tomar.",
+      "```",
+      "",
+      "Sale por {item.label}.",
+      "",
+      "```calamus",
+      "end",
+      "```",
+    );
+    expect(diagnostics).toEqual([]);
+    const each = read.body[0] as Extract<Block, { kind: "each" }>;
+    expect(each.group).toBe("exits");
+    expect(each.order).toBe("unstable");
+    expect(proseOf(paragraphs(each.empty!)[0].content)).toBe("Ya no queda nada que tomar.");
+    expect(proseOf(paragraphs(each.body)[0].content)).toBe("Sale por {item.label}.");
+    expect(read.uses).toContainEqual({ name: "unstable", kind: "orders" });
+  });
+
+  it("opens a region with its own island, as a node opens a node", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "---",
+      "",
+      "```calamus",
+      "region: nota-3",
+      "```",
+      "",
+      "El texto que se despliega al tocarla.",
+      "",
+      "```calamus",
+      "end",
+      "```",
+      "",
+      "Fuera.",
+    );
+    expect(diagnostics).toEqual([]);
+    const region = read.body[0] as Extract<Block, { kind: "region" }>;
+    expect(region.kind).toBe("region");
+    expect(region.id).toBe("nota-3");
+    expect(proseOf(paragraphs(region.body)[0].content)).toBe("El texto que se despliega al tocarla.");
+    expect(proseOf(paragraphs(read.body)[0].content)).toBe("Fuera.");
+  });
+
+  it("makes a button of each control of a `controls:` island", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "---",
+      "",
+      "```calamus",
+      "controls:",
+      "  - move: turn-to-next",
+      "    label: Open the next unread sheet",
+      '    when: "seen < total"',
+      "```",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.body).toEqual([
+      {
+        kind: "affordance",
+        action: "do",
+        target: "turn-to-next",
+        label: "Open the next unread sheet",
+        when: {
+          kind: "compare",
+          op: "<",
+          left: { kind: "read", path: "seen" },
+          right: { kind: "read", path: "total" },
+        },
+      },
+    ]);
+  });
+
+  it("keeps the label of a control whose gesture the contract cannot carry", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "---",
+      "",
+      "```calamus",
+      "controls:",
+      "  - resets: book",
+      "    label: Close the book",
+      "```",
+    );
+    expect(errorsOf(diagnostics)).toEqual([]);
+    expect(read.body).toEqual([{ kind: "affordance", action: "do", target: "", label: "Close the book" }]);
+    expect(warningsOf(diagnostics)).toHaveLength(1);
+  });
+});
+
+describe("an affordance standing on its own", () => {
+  it("makes a block of a labelled directive that is the whole paragraph", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "---",
+      "",
+      ':do{move=forget label="Olvídame" when="readings > 1"}',
+    );
+    expect(diagnostics).toEqual([]);
+    expect(read.body).toEqual([
+      {
+        kind: "affordance",
+        action: "do",
+        target: "forget",
+        label: "Olvídame",
+        when: { kind: "compare", op: ">", left: { kind: "read", path: "readings" }, right: { kind: "literal", value: 1 } },
+      },
+    ]);
+  });
+
+  it("leaves an affordance inside a sentence inline, where its prose is", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "---",
+      "",
+      "El pasillo :go{show=note-3 focus=true} sigue hasta el fondo.",
+    );
+    expect(diagnostics).toEqual([]);
+    const paragraph = paragraphs(read.body)[0];
+    expect(paragraph.content[1]).toEqual({ kind: "affordance", action: "show", target: "note-3", focus: true, children: [] });
   });
 });

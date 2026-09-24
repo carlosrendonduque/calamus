@@ -34,7 +34,16 @@ import type {
   VariableDef,
 } from "./types";
 import { parseExpression } from "./expression";
-import { attributeValue, parseInline, readDirective, type Attributes } from "./inline";
+import {
+  attributeValue,
+  expressionAttribute,
+  isAffordanceVerb,
+  parseInline,
+  readDirective,
+  readGesture,
+  type Attributes,
+  type Directive,
+} from "./inline";
 import { entry, items, keysOf, parseYaml, scalar, text, type YamlNode } from "./yaml";
 
 type Context = {
@@ -183,7 +192,7 @@ function readFrontMatter(node: YamlNode, document: NarrativeDocument, context: C
         break;
       case "opens": {
         const opens = readOpens(item.value, context);
-        if (opens.trail !== undefined || opens.readings !== undefined) document.opens = opens;
+        if (Object.keys(opens).length > 0) document.opens = opens;
         break;
       }
       case "uses":
@@ -191,16 +200,23 @@ function readFrontMatter(node: YamlNode, document: NarrativeDocument, context: C
         break;
       case "marks":
         // The mark kind is the author's and the renderer behind it is the
-        // registry's; the contract holds the second and not the first.
+        // registry's; `NarrativeDocument.marks` stores the first and reads none
+        // of it, and `as:` is the only key the schema itself follows.
         for (const declaration of mapEntriesOf(item.value, "marks", context)) {
+          document.marks[declaration.key] = readVocabulary(declaration.value, `the mark \`${declaration.key}\``, context);
           const renderer = text(entry(declaration.value, "as"));
           if (renderer) context.uses.set(renderer, "marks");
         }
-        context.diagnostics.push({
-          severity: "warning",
-          message: `\`marks:\` declares mark kinds, and \`NarrativeDocument\` has nowhere to keep them; only the registry names they reach for were kept (\`${keysOf(item.value).join("`, `")}\`).`,
-          line: item.line,
-        });
+        break;
+      case "moves":
+        for (const declaration of mapEntriesOf(item.value, "moves", context)) {
+          document.moves[declaration.key] = readMove(declaration.key, declaration.value, context);
+        }
+        break;
+      case "controls":
+        for (const declaration of mapEntriesOf(item.value, "controls", context)) {
+          document.controls[declaration.key] = readVocabulary(declaration.value, `the control \`${declaration.key}\``, context);
+        }
         break;
       case "slots":
         for (const declaration of mapEntriesOf(item.value, "slots", context)) {
@@ -312,10 +328,18 @@ function readVariable(name: string, node: YamlNode, context: Context): VariableD
 
   const unit = text(entry(node, "unit"));
   if (unit !== null) variable.unit = unit;
+  // The label of a control is prose someone reads, so it belongs to the document.
+  const label = text(entry(node, "label"));
+  if (label !== null) variable.label = label;
   const persist = scalar(entry(node, "persist"));
   if (typeof persist === "boolean") variable.persist = persist;
 
-  noteUnusedKeys(node, ["type", "default", "min", "max", "of", "control", "unit", "persist"], `the variable \`${name}\``, context);
+  noteUnusedKeys(
+    node,
+    ["type", "default", "min", "max", "of", "control", "unit", "label", "persist"],
+    `the variable \`${name}\``,
+    context
+  );
   return variable;
 }
 
@@ -355,15 +379,24 @@ function readGroup(name: string, node: YamlNode, context: Context): GroupDef {
   const fields = items(entry(node, "fields")).map((item) => text(item) ?? "");
   const group: GroupDef = { fields, discipline, items: [] };
 
+  // A group may be a filtered view of another instead of a list of its own. The
+  // filter reads live values, so it is kept as an expression and never resolved
+  // here: `said: { of: account, where: "trust >= keep" }`.
   const derivedFrom = entry(node, "of");
   if (derivedFrom !== null) {
+    const from = text(derivedFrom);
+    if (from === null) {
+      context.diagnostics.push({
+        severity: "error",
+        message: `\`of:\` on \`${name}\` names the group it is a view of, and is not a name.`,
+        line: derivedFrom.line,
+      });
+      return group;
+    }
+    group.derivedFrom = { group: from };
     const where = text(entry(node, "where"));
-    context.diagnostics.push({
-      severity: "warning",
-      message: `\`${name}\` is derived from \`${text(derivedFrom)}\`${where ? ` where \`${where}\`` : ""}, and \`GroupDef\` has no shape for a derivation; the group is kept empty.`,
-      line: node.line,
-    });
-    if (where) parseExpression(where, node.line, context.diagnostics);
+    if (where !== null) group.derivedFrom.where = parseExpression(where, node.line, context.diagnostics);
+    noteUnusedKeys(node, ["fields", "keeps", "removes", "marks", "of", "where"], `the group \`${name}\``, context);
     return group;
   }
 
@@ -436,8 +469,13 @@ function readName(node: YamlNode, context: Context): NameDef | null {
         line: node.line,
       });
     }
-    noteUnusedKeys(node, ["over", "of", "by", "test"], "a grouping", context);
-    return { kind: "grouped", over, by, test: test as "split" | "agree" };
+    noteUnusedKeys(node, ["over", "of", "by", "answer", "test"], "a grouping", context);
+    const grouped: NameDef = { kind: "grouped", over, by, test: test as "split" | "agree" };
+    // Without the field carrying the answer the test compares every other field
+    // and every bucket splits, because the prose differs.
+    const answer = text(entry(node, "answer"));
+    if (answer !== null) grouped.answer = answer;
+    return grouped;
   }
   const derivation = text(entry(node, "derivation"));
   if (derivation !== null) {
@@ -467,6 +505,12 @@ function readPhrase(node: YamlNode, context: Context): PhraseDef {
     context.uses.set(plural, "plurals");
   }
 
+  const declaredList = entry(node, "list");
+  if (declaredList !== null) {
+    const joined = readList(declaredList, node, context);
+    if (joined) phrase.list = joined;
+  }
+
   const cases = entry(node, "cases");
   const bare = entry(node, "say");
   // `cases` is optional in the contract, because a phrase with nothing to choose
@@ -480,8 +524,52 @@ function readPhrase(node: YamlNode, context: Context): PhraseDef {
     context.diagnostics.push({ severity: "error", message: "A phrase has no cases.", line: node.line });
   }
 
-  noteUnusedKeys(node, ["on", "of", "plural", "cases", "say"], "a phrase", context);
+  noteUnusedKeys(
+    node,
+    ["on", "of", "plural", "list", "field", "sep", "last", "cases", "say"],
+    "a phrase",
+    context
+  );
   return phrase;
+}
+
+/**
+ * `list: { of, field, sep, last }` — the author supplies the separators
+ * literally, because Spanish turns "y" into "e" before i- and the library must
+ * never choose. The flat spelling beside `field:`/`sep:` is read as the same.
+ */
+function readList(node: YamlNode, phrase: YamlNode, context: Context): PhraseDef["list"] | null {
+  const flat = text(node);
+  const source = flat !== null ? phrase : node;
+  const of = flat !== null ? flat : text(entry(node, "of"));
+  if (of === null) {
+    context.diagnostics.push({
+      severity: "error",
+      message: "A joined list says nothing about the group it joins.",
+      line: node.line,
+    });
+    return null;
+  }
+  if (flat !== null) {
+    context.diagnostics.push({
+      severity: "warning",
+      message: "`list:` takes `{ of, field, sep, last }` in the contract; the flat spelling beside it was read as one.",
+      line: node.line,
+    });
+  }
+  const field = text(entry(source, "field"));
+  const sep = text(entry(source, "sep"));
+  if (field === null || sep === null) {
+    context.diagnostics.push({
+      severity: "warning",
+      message: `A joined list over \`${of}\` names no ${field === null ? "`field:`" : "`sep:`"}, which the contract asks for; it was read as ${field === null ? "the whole item" : "an empty separator"}.`,
+      line: node.line,
+    });
+  }
+  const joined: NonNullable<PhraseDef["list"]> = { of, field: field ?? "", sep: sep ?? "" };
+  const last = text(entry(source, "last"));
+  if (last !== null) joined.last = last;
+  return joined;
 }
 
 function readCase(node: YamlNode, phrase: PhraseDef, context: Context): PhraseCase {
@@ -494,11 +582,12 @@ function readCase(node: YamlNode, phrase: PhraseDef, context: Context): PhraseCa
   }
 
   const is = scalar(entry(node, "is"));
-  if (typeof is === "number") {
+  if (typeof is === "number" || typeof is === "boolean") {
+    // `is: v` is sugar for `when: on == v`, for a number or a boolean.
     result.is = is;
   } else if (is !== null) {
-    // `is: n` is sugar for `when: on == n`, and `PhraseCase.is` only holds a
-    // number, so a boolean or a word is written out as the clause it stands for.
+    // Anything else is a word, which `PhraseCase.is` does not hold, so it is
+    // written out as the clause it stands for.
     if (phrase.on === undefined) {
       context.diagnostics.push({
         severity: "error",
@@ -533,8 +622,111 @@ function readOpens(node: YamlNode, context: Context): Opens {
   if (trail !== null) opens.trail = items(trail).map((item) => text(item) ?? "");
   const readings = scalar(entry(node, "readings"));
   if (typeof readings === "number") opens.readings = readings;
-  noteUnusedKeys(node, ["trail", "readings"], "`opens:`", context);
+
+  // A document may open with a log already holding entries, or a variable
+  // already moved: a text with no trace cannot show that it keeps one.
+  const logs = entry(node, "logs");
+  if (logs !== null) {
+    const seeded: Record<string, GroupItem[] | number> = {};
+    for (const declaration of mapEntriesOf(logs, "`opens: logs:`", context)) {
+      const howMany = scalar(declaration.value);
+      if (typeof howMany === "number") {
+        seeded[declaration.key] = howMany;
+        continue;
+      }
+      seeded[declaration.key] = items(declaration.value).map((item, index) => {
+        const fields: Record<string, Scalar> = {};
+        for (const field of item.kind === "map" ? item.entries : []) {
+          const value = scalar(field.value);
+          if (value !== null) fields[field.key] = value;
+        }
+        // The id of a log entry is born when the entry is written, so a seeded
+        // one is given its position and nothing is said about it.
+        const id = typeof fields.id === "string" ? fields.id : String(fields.id ?? index);
+        return { ...fields, id } as GroupItem;
+      });
+    }
+    opens.logs = seeded;
+  }
+
+  const variables = entry(node, "variables");
+  if (variables !== null) {
+    const moved: Record<string, Scalar | Scalar[]> = {};
+    for (const declaration of mapEntriesOf(variables, "`opens: variables:`", context)) {
+      moved[declaration.key] =
+        declaration.value.kind === "seq"
+          ? declaration.value.items.map((item) => scalar(item) ?? "")
+          : scalar(declaration.value) ?? "";
+    }
+    opens.variables = moved;
+  }
+
+  noteUnusedKeys(node, ["trail", "readings", "logs", "variables"], "`opens:`", context);
   return opens;
+}
+
+/**
+ * An author-declared vocabulary: a mark kind, a control. The schema stores the
+ * keys the author wrote and reads none of them (decision 30).
+ */
+function readVocabulary(node: YamlNode, what: string, context: Context): Record<string, Scalar> {
+  const declared: Record<string, Scalar> = {};
+  if (node.kind !== "map") {
+    context.diagnostics.push({
+      severity: "error",
+      message: `${what} is not a map of what the author declared about it.`,
+      line: node.line,
+    });
+    return declared;
+  }
+  for (const field of node.entries) {
+    const value = scalar(field.value);
+    if (value === null) {
+      context.diagnostics.push({
+        severity: "warning",
+        message: `\`${field.key}\` on ${what} is not a single value, which is all a declared vocabulary holds; it was dropped.`,
+        line: field.line,
+      });
+      continue;
+    }
+    declared[field.key] = value;
+  }
+  return declared;
+}
+
+/**
+ * `moves:` declares a gesture the prose then names. The contract keeps what it
+ * writes; the rest of the declaration is the gesture's own detail, in the
+ * author's vocabulary, and is carried beside it rather than dropped.
+ */
+function readMove(name: string, node: YamlNode, context: Context): NarrativeDocument["moves"][string] {
+  const detail: Record<string, unknown> = {};
+  for (const field of node.kind === "map" ? node.entries : []) {
+    if (field.key === "writes") continue;
+    detail[field.key] = plain(field.value);
+  }
+  const declared = entry(node, "writes");
+  if (declared === null) {
+    context.diagnostics.push({
+      severity: "warning",
+      message: `The move \`${name}\` does not say what it \`writes:\`, which is what the contract keeps of it.`,
+      line: node.line,
+    });
+  }
+  const move: NarrativeDocument["moves"][string] & Record<string, unknown> = {
+    ...detail,
+    writes: items(declared).map((item) => text(item) ?? ""),
+  };
+  return move;
+}
+
+/** A YAML node as plain data, for the author's own vocabulary. */
+function plain(node: YamlNode): unknown {
+  if (node.kind === "scalar") return scalar(node);
+  if (node.kind === "seq") return node.items.map(plain);
+  const asObject: Record<string, unknown> = {};
+  for (const field of node.entries) asObject[field.key] = plain(field.value);
+  return asObject;
 }
 
 function readUses(node: YamlNode, context: Context): void {
@@ -648,6 +840,10 @@ function readBody(source: string, firstLine: number, document: NarrativeDocument
         open.push({ block: island.block, opener: island.opener, line: firstLine + start });
         continue;
       }
+      if (island.kind === "blocks") {
+        for (const block of island.blocks) push(block);
+        continue;
+      }
       push(island.block);
       continue;
     }
@@ -692,7 +888,8 @@ type Island =
   | { kind: "end" }
   | { kind: "node"; node: NodeDef }
   | { kind: "open"; block: Block & { body: Block[] }; opener: string }
-  | { kind: "block"; block: Block };
+  | { kind: "block"; block: Block }
+  | { kind: "blocks"; blocks: Block[] };
 
 function readIsland(content: string, firstLine: number, raw: string, context: Context): Island {
   const significant = content
@@ -712,16 +909,34 @@ function readIsland(content: string, firstLine: number, raw: string, context: Co
 
   if (first === "each") {
     const spec = groupSpec(text(entry(node, "each")) ?? "", node.line, context);
-    noteUnusedKeys(node, ["each"], "an `each` island", context);
+    noteUnusedKeys(node, ["each", "order", "empty"], "an `each` island", context);
     const block: Block & { body: Block[] } = { kind: "each", group: spec.group, body: [] };
     if (spec.where) block.where = spec.where;
+    // The order of what a group prints is structure, not presentation, so the
+    // name is the registry's and the permutation is never the parser's.
+    const order = text(entry(node, "order"));
+    if (order !== null) {
+      block.order = order;
+      context.uses.set(order, "orders");
+    }
+    // `empty:` is reader-facing prose, not an empty state: an exhausted group is
+    // usually the moment the piece says something. Losing it loses prose.
+    const empty = entry(node, "empty");
+    if (empty !== null) block.empty = readBlocks(text(empty) ?? "", empty.line, context);
     return { kind: "open", block, opener: "each" };
   }
 
-  if (first === "block" || first === "pair") {
+  // A region opens as a node does, with its own island, and reveals in place
+  // instead of replacing (formato.md §7). `block:` and `pair:` are the older
+  // spellings the corpus writes and are read as the same thing.
+  if (first === "region" || first === "block" || first === "pair") {
     const id = text(entry(node, "id")) ?? text(entry(node, first)) ?? "";
     noteUnusedKeys(node, [first, "id"], `a \`${first}\` island`, context);
     return { kind: "open", block: { kind: "region", id, body: [] }, opener: first };
+  }
+
+  if (first === "controls") {
+    return { kind: "blocks", blocks: readControls(entry(node, "controls"), context) };
   }
 
   if (first === "slot") {
@@ -747,6 +962,9 @@ function readIsland(content: string, firstLine: number, raw: string, context: Co
 
 function readNode(node: YamlNode, context: Context): NodeDef {
   const result: NodeDef = { id: text(entry(node, "node")) ?? "", exits: [], body: [] };
+  // Printed when the trail names this node back to the reader.
+  const title = text(entry(node, "title"));
+  if (title !== null) result.title = title;
   const requires = text(entry(node, "requires"));
   if (requires !== null) result.requires = parseExpression(requires, node.line, context.diagnostics);
 
@@ -764,13 +982,95 @@ function readNode(node: YamlNode, context: Context): NodeDef {
       }
       const when = text(entry(item, "when"));
       if (when !== null) exit.when = parseExpression(when, item.line, context.diagnostics);
-      noteUnusedKeys(item, ["to", "label", "when"], `the exit to \`${to}\``, context);
+      // Reader-facing prose on the exit itself ("seen"), not a style.
+      const note = text(entry(item, "note"));
+      if (note !== null) exit.note = note;
+      // Logs or variables this exit returns to their opening value.
+      const resets = entry(item, "resets");
+      if (resets !== null) exit.resets = items(resets).map((name) => text(name) ?? "");
+      noteUnusedKeys(item, ["to", "label", "when", "note", "resets"], `the exit to \`${to}\``, context);
       result.exits.push(exit);
     }
   }
 
-  noteUnusedKeys(node, ["node", "requires", "exits"], `the node \`${result.id}\``, context);
+  noteUnusedKeys(node, ["node", "title", "requires", "exits"], `the node \`${result.id}\``, context);
   return result;
+}
+
+/**
+ * A `controls:` island: a list of buttons standing on their own. Eight of the
+ * nineteen end in one, and each carries a label, which is reader-facing prose.
+ *
+ * `Block.affordance` holds one target, so an entry that names a declared move
+ * arrives whole; an entry that spells its gesture out on the spot keeps its
+ * label and its condition, and the gesture itself is diagnosed.
+ */
+function readControls(node: YamlNode | null, context: Context): Block[] {
+  if (node === null) return [];
+  const blocks: Block[] = [];
+  let spelledOut = 0;
+  const unspeakable = new Set<string>();
+  for (const item of items(node)) {
+    const label = text(entry(item, "label"));
+    if (label === null) {
+      context.diagnostics.push({
+        severity: "warning",
+        message: "A control carries no `label:`, which is the prose the reader reads on it.",
+        line: item.line,
+      });
+    }
+    const navigates = text(entry(item, "to"));
+    const reveals = text(entry(item, "show"));
+    const moves = text(entry(item, "move"));
+    let action: "go" | "show" | "do" = "do";
+    let target = "";
+    if (navigates !== null) {
+      action = "go";
+      target = navigates;
+    } else if (reveals !== null) {
+      action = "show";
+      target = reveals;
+    } else if (moves !== null) {
+      target = moves;
+    } else {
+      spelledOut += 1;
+      for (const key of keysOf(item)) if (key !== "label" && key !== "when") unspeakable.add(key);
+    }
+    const control: Block = { kind: "affordance", action, target, label: label ?? "" };
+    const when = text(entry(item, "when"));
+    if (when !== null) control.when = parseExpression(when, item.line, context.diagnostics);
+    blocks.push(control);
+  }
+  if (spelledOut > 0) {
+    context.diagnostics.push({
+      severity: "warning",
+      message: `${spelledOut} control${spelledOut === 1 ? "" : "s"} spell${spelledOut === 1 ? "s" : ""} the gesture out on the control itself (\`${[...unspeakable].join("`, `")}\`), and \`Block.affordance\` holds one target; the labels and the conditions were kept and the gestures were not.`,
+      line: node.line,
+    });
+  }
+  return blocks;
+}
+
+/** Prose standing inside an island value: one block per paragraph of it. */
+function readBlocks(source: string, firstLine: number, context: Context): Block[] {
+  const blocks: Block[] = [];
+  let chunk: string[] = [];
+  let at = 0;
+  let start = 0;
+  const flush = () => {
+    if (chunk.length > 0) blocks.push(...readProse(chunk, firstLine + start, context));
+    chunk = [];
+  };
+  for (const line of source.split("\n")) {
+    if (line.trim() === "") flush();
+    else {
+      if (chunk.length === 0) start = at;
+      chunk.push(line);
+    }
+    at += 1;
+  }
+  flush();
+  return blocks;
 }
 
 /** `group`, or `group where <expression>`. */
@@ -785,7 +1085,7 @@ function groupSpec(source: string, line: number, context: Context): { group: str
 /* Prose                                                                       */
 /* -------------------------------------------------------------------------- */
 
-const BLOCK_ATTRIBUTES = ["when", "weight", "id", "voice", "lang", "mark", "live"];
+const BLOCK_ATTRIBUTES = ["when", "weight", "id", "voice", "lang", "mark", "live", "role"];
 
 function readProse(chunk: string[], firstLine: number, context: Context): Block[] {
   const blocks: Block[] = [];
@@ -833,6 +1133,17 @@ function readProse(chunk: string[], firstLine: number, context: Context): Block[
     if (spec.where) each.where = spec.where;
     blocks.push(each);
     return blocks;
+  } else if (
+    opening &&
+    isAffordanceVerb(opening.name) &&
+    opening.attributes.label !== undefined &&
+    source.slice(offset + opening.end).trim() === ""
+  ) {
+    // A control or a button standing on its own, which eight of the nineteen
+    // end in. Its label is prose, so it is the label that tells one from an
+    // affordance inside a sentence, which takes its prose from its children.
+    blocks.push(blockAffordance(opening, line, context));
+    return blocks;
   } else if (opening && opening.name === "blank") {
     const count = Number(opening.children.trim());
     if (!Number.isFinite(count) || count <= 0) {
@@ -856,6 +1167,28 @@ function readProse(chunk: string[], firstLine: number, context: Context): Block[
   return blocks;
 }
 
+function blockAffordance(directive: Directive, line: number, context: Context): Block {
+  const { action, target, used } = readGesture(directive, line, context.diagnostics);
+  const block: Block = {
+    kind: "affordance",
+    action,
+    target,
+    label: attributeValue(directive.attributes, "label") ?? "",
+  };
+  const when = expressionAttribute(directive.attributes, "when", line, context.diagnostics);
+  if (when) block.when = when;
+  const kept = [...used, "label", "when"];
+  const dropped = Object.keys(directive.attributes).filter((name) => !kept.includes(name));
+  if (dropped.length > 0) {
+    context.diagnostics.push({
+      severity: "warning",
+      message: `\`${dropped.join("`, `")}\` on \`:${directive.name}\` ${dropped.length === 1 ? "has" : "have"} no place on a block affordance in the contract, and ${dropped.length === 1 ? "was" : "were"} dropped.`,
+      line,
+    });
+  }
+  return block;
+}
+
 function readBlockAttrs(attributes: Attributes, line: number, context: Context): BlockAttrs {
   const attrs: BlockAttrs = {};
 
@@ -874,22 +1207,16 @@ function readBlockAttrs(attributes: Attributes, line: number, context: Context):
       });
   }
 
-  for (const name of ["id", "voice", "lang", "mark"] as const) {
+  // `role` is a part the author names — `heading`, `caption`, `time` — and not a
+  // number, which is what `weight` above holds.
+  for (const name of ["id", "voice", "lang", "mark", "role"] as const) {
     const value = attributeValue(attributes, name);
     if (value !== null) attrs[name] = value;
   }
 
+  // `true`, or the ARIA politeness the author asked for (`polite`, `status`).
   const live = attributeValue(attributes, "live");
-  if (live !== null) {
-    attrs.live = live !== "false";
-    if (live !== "true" && live !== "false") {
-      context.diagnostics.push({
-        severity: "warning",
-        message: `\`live=${live}\` names how urgently the region announces, and \`BlockAttrs.live\` is a boolean; the politeness was dropped.`,
-        line,
-      });
-    }
-  }
+  if (live !== null) attrs.live = live === "true" ? true : live === "false" ? false : live;
 
   const dropped = Object.keys(attributes).filter((name) => !BLOCK_ATTRIBUTES.includes(name));
   if (dropped.length > 0) {

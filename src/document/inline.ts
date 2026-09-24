@@ -37,6 +37,11 @@ export function isKnownVerb(name: string): boolean {
   return KNOWN_VERBS.has(name);
 }
 
+/** The verbs that name a gesture: `:go`, `:do`, and the two older write verbs. */
+export function isAffordanceVerb(name: string): boolean {
+  return name === "go" || name === "do" || WRITE_VERBS.has(name);
+}
+
 /** Read a directive that starts at `at`, or null if nothing starts there. */
 export function readDirective(source: string, at: number): Directive | null {
   if (source[at] !== ":") return null;
@@ -202,14 +207,7 @@ function interpolation(inner: string, line: number, diagnostics: Diagnostic[]): 
     });
     return { kind: "text", text: `{${inner}}` };
   }
-  const dots = path.split(".").length - 1;
-  if (dots > 1) {
-    diagnostics.push({
-      severity: "warning",
-      message: `\`{${path}}\` is a path of ${dots} dots; \`Path\` in the contract is at most one.`,
-      line,
-    });
-  }
+  // A `Path` is names joined by dots, however many: `{entry.note.mark}` is one.
   return { kind: "interpolation", path };
 }
 
@@ -230,8 +228,13 @@ function inlineDirective(directive: Directive, line: number, diagnostics: Diagno
       diagnostics.push({ severity: "error", message: "`:mark` needs a `kind`.", line });
       return children;
     }
-    noteDroppedAttributes(directive, ["kind", "as"], "a mark", line, diagnostics);
-    return [{ kind: "mark", markKind: kind, children }];
+    noteDroppedAttributes(directive, ["kind", "as", "when"], "a mark", line, diagnostics);
+    const mark: Inline = { kind: "mark", markKind: kind, children };
+    // A mark carries its own condition: `when` on the paragraph decides whether
+    // the paragraph is there at all, and a marked span is always there.
+    const when = expressionAttribute(attributes, "when", line, diagnostics);
+    if (when) mark.when = when;
+    return [mark];
   }
 
   if (name === "slot") {
@@ -264,7 +267,12 @@ function inlineDirective(directive: Directive, line: number, diagnostics: Diagno
   return children;
 }
 
-function affordance(directive: Directive, children: Inline[], line: number, diagnostics: Diagnostic[]): Inline {
+/** Which of the three gestures a directive names, and what it names. */
+export function readGesture(
+  directive: Directive,
+  line: number,
+  diagnostics: Diagnostic[]
+): { action: "go" | "show" | "do"; target: string; used: string[] } {
   const { name, attributes } = directive;
   const navigates = attributeValue(attributes, "to");
   const reveals = attributeValue(attributes, "show");
@@ -308,10 +316,18 @@ function affordance(directive: Directive, children: Inline[], line: number, diag
     });
   }
 
+  return { action, target, used };
+}
+
+function affordance(directive: Directive, children: Inline[], line: number, diagnostics: Diagnostic[]): Inline {
+  const { attributes } = directive;
+  const { action, target, used } = readGesture(directive, line, diagnostics);
   const focus = attributes.focus;
-  noteDroppedAttributes(directive, [...used, "focus"], `a \`${action}\` affordance`, line, diagnostics);
+  noteDroppedAttributes(directive, [...used, "focus", "when"], `a \`${action}\` affordance`, line, diagnostics);
   const result: Inline = { kind: "affordance", action, target, children };
   if (focus) result.focus = focus.value !== "false";
+  const when = expressionAttribute(attributes, "when", line, diagnostics);
+  if (when) result.when = when;
   return result;
 }
 

@@ -19,8 +19,12 @@ type Token =
 const COMPARISONS: Comparison[] = ["==", "!=", "<=", ">=", "<", ">"];
 
 /** The calls the contract can hold. Everything else is diagnosed, never guessed at. */
-const GROUP_CALLS = new Set(["count", "some"]);
+const GROUP_CALLS = new Set(["count", "some", "first", "last"]);
 const NODE_CALLS = new Set(["visits", "visited"]);
+/** `in(group, value)` takes two arguments; `persisted(name)` takes none or one. */
+const MEMBERSHIP_CALL = "in";
+const PERSISTED_CALL = "persisted";
+const CALLS = [...GROUP_CALLS, ...NODE_CALLS, MEMBERSHIP_CALL, PERSISTED_CALL];
 
 export function parseExpression(source: string, line: number, diagnostics: Diagnostic[]): Expression {
   const tokens = tokenize(source, line, diagnostics);
@@ -164,13 +168,7 @@ function parsePath(state: State): Expression {
     segments.push(next.value);
     state.at += 1;
   }
-  if (segments.length > 2) {
-    state.diagnostics.push({
-      severity: "warning",
-      message: `\`${segments.join(".")}\` is a path of ${segments.length - 1} dots; \`Path\` in the contract is at most one.`,
-      line: state.line,
-    });
-  }
+  // A `Path` is names joined by dots, however many: `entry.note.mark` is one.
   return { kind: "read", path: segments.join(".") };
 }
 
@@ -212,14 +210,8 @@ function parseCall(state: State): Expression {
       });
       return { kind: "read", path: raw };
     }
+    // The node is named outright or reached by a path; the contract holds both.
     const node = inner.tokens.map((token) => String(token.value)).join("");
-    if (inner.tokens.length > 1) {
-      state.diagnostics.push({
-        severity: "warning",
-        message: `\`${raw}\` names the node by a path, and \`${name.value}\` in the contract holds a name; the path was kept as the string.`,
-        line: state.line,
-      });
-    }
     return name.value === "visits" ? { kind: "visits", node } : { kind: "visited", node };
   }
 
@@ -233,7 +225,8 @@ function parseCall(state: State): Expression {
       });
       return { kind: "read", path: raw };
     }
-    const kind = name.value === "count" ? ("count" as const) : ("some" as const);
+    // The four read the same way: a group, and an optional filter over it.
+    const kind = String(name.value) as "count" | "some" | "first" | "last";
     if (inner.tokens.length === 1) return { kind, group: group.value };
     const qualifier = inner.tokens[1];
     if (!isName(qualifier, "where")) {
@@ -249,12 +242,61 @@ function parseCall(state: State): Expression {
     return { kind, group: group.value, where };
   }
 
+  if (String(name.value) === MEMBERSHIP_CALL) {
+    // `in(log, item)` — membership, which is not the same as counting, so it
+    // takes two arguments: the group, and the value looked for inside it.
+    const parts = splitOnCommas(inner.tokens);
+    const group = parts.length === 2 ? parts[0][0] : undefined;
+    if (parts.length !== 2 || parts[0].length !== 1 || !group || group.kind !== "name") {
+      state.diagnostics.push({
+        severity: "error",
+        message: `\`in()\` takes a group and a value, in \`${raw}\`.`,
+        line: state.line,
+      });
+      return { kind: "read", path: raw };
+    }
+    const nested: State = { ...state, tokens: parts[1], at: 0 };
+    return { kind: "in", group: group.value, value: parseOr(nested) };
+  }
+
+  if (String(name.value) === PERSISTED_CALL) {
+    // `persisted(name)` asks after one value; `persisted()` asks after the store
+    // itself, which is the question the document about the medium puts.
+    if (inner.tokens.length === 0) return { kind: "persisted", name: "" };
+    const named = inner.tokens[0];
+    if (inner.tokens.length > 1 || named.kind !== "name") {
+      state.diagnostics.push({
+        severity: "error",
+        message: `\`persisted()\` takes one name or none, in \`${raw}\`.`,
+        line: state.line,
+      });
+      return { kind: "read", path: raw };
+    }
+    return { kind: "persisted", name: named.value };
+  }
+
   state.diagnostics.push({
     severity: "warning",
-    message: `\`${name.value}()\` is not one of the operators \`Expression\` holds (\`visits\`, \`visited\`, \`count\`, \`some\`); \`${raw}\` is kept as its own source text.`,
+    message: `\`${name.value}()\` is not one of the operators \`Expression\` holds (\`${CALLS.join("`, `")}\`); \`${raw}\` is kept as its own source text.`,
     line: state.line,
   });
   return { kind: "read", path: raw };
+}
+
+/** Split a call body on the commas that sit outside any nested brackets. */
+function splitOnCommas(tokens: Token[]): Token[][] {
+  const parts: Token[][] = [[]];
+  let depth = 0;
+  for (const token of tokens) {
+    if (token.kind === "op" && token.value === "(") depth += 1;
+    if (token.kind === "op" && token.value === ")") depth -= 1;
+    if (token.kind === "op" && token.value === "," && depth === 0) {
+      parts.push([]);
+      continue;
+    }
+    parts[parts.length - 1].push(token);
+  }
+  return parts;
 }
 
 /** Consume `name ( … )` and hand back the tokens between the brackets. */
