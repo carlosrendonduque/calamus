@@ -69,6 +69,10 @@ Work preparing the library for its first public release.
   is now called only for keys the reader actually handles, so the rest pass through.
 - `paginateEditorialParagraphs` no longer throws on a `columnCount` below 1, fractional, `NaN`
   or `Infinity`; it floors to a minimum of one column.
+- The published demo was rendering unstyled. `sideEffects` lets bundlers prune the stylesheet
+  import inside `src/index.ts`, so the playground now imports the stylesheet explicitly, the
+  way a host project has to. This is a demo fix; consuming the library was always documented as
+  requiring `import "calamus/styles.css"`.
 
 ## [0.1.0] - 2026-05-26
 
