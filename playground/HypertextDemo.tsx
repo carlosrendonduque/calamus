@@ -1,44 +1,56 @@
-// TODO: a gallery of hypertext pieces will mount here, from `playground/gallery/`.
-// Until it exists this single Apollinaire demo stands in for it: it is the seam
-// where the gallery replaces the children passed to `hypertext` mode.
+import { useState } from "react";
+import { GALLERY_CASES } from "./gallery";
+import { SourcePanel } from "./gallery/SourcePanel";
 
 type HypertextDemoProps = {
+  /** `content.body`, passed in only so the gallery can say that it is being ignored. */
   lines: string[];
 };
 
-function RainLine({ index, children }: { index: number; children: string }) {
-  return (
-    <p className="playground__rain-line" style={{ marginInlineStart: `${index * 1.4}rem` }}>
-      {children}
-    </p>
-  );
-}
-
+/**
+ * The children the explorer hands to `hypertext` mode: a gallery of six pieces,
+ * each one a different class of thing this mode allows and each one showing its
+ * own source. Nothing below the reader's header comes from the library.
+ */
 export function HypertextDemo({ lines }: HypertextDemoProps) {
+  const [caseId, setCaseId] = useState(GALLERY_CASES[0].id);
+  const current = GALLERY_CASES.find((entry) => entry.id === caseId) ?? GALLERY_CASES[0];
+  const Case = current.render;
+
   return (
-    <div className="playground__hypertext-demo">
-      <p>
-        In hypertext mode the reader renders its header and then steps aside: everything below
-        this point is your own markup, passed in as <code>children</code>. <code>content.body</code>{" "}
-        is not rendered, and no reading time is shown.
+    <div className="playground__gallery">
+      <p className="playground__gallery-intro">
+        <code>content.body</code> holds{" "}
+        {`${lines.length} paragraph${lines.length === 1 ? "" : "s"}`}, and hypertext mode renders
+        none of them: everything below the title is markup passed in as <code>children</code>. Six
+        examples of what that allows.
       </p>
-      <div className="playground__rain" lang="fr">
-        {lines.map((line, index) => (
-          <RainLine key={index} index={index}>
-            {line}
-          </RainLine>
-        ))}
+
+      <div className="playground__picker" role="group" aria-labelledby="gallery-picker-label">
+        <span className="playground__picker-label" id="gallery-picker-label">
+          example
+        </span>
+        <div className="playground__picker-buttons">
+          {GALLERY_CASES.map((entry, index) => (
+            <button
+              key={entry.id}
+              type="button"
+              aria-pressed={entry.id === current.id}
+              className={entry.id === current.id ? "is-active" : undefined}
+              onClick={() => setCaseId(entry.id)}
+            >
+              {`${index + 1}. ${entry.title}`}
+            </button>
+          ))}
+        </div>
       </div>
-      <blockquote className="playground__rotated-quote">
-        <p>A layout is an argument about how a text wants to be read.</p>
-      </blockquote>
-      <p>
-        On Apollinaire's page those lines fall as slanting columns of rain, one letter at a time.
-        The library has no opinion about that, which is the point: it gives you the frame and the
-        typography, and lets the piece keep its own shape. Nothing in this block is paginated,
-        measured or reflowed by calamus.
-      </p>
-      <div className="playground__blinking-note">node /calligrammes/il-pleut — 1 direction: down</div>
+
+      <article className="playground__case" aria-labelledby="gallery-case-title">
+        <h3 id="gallery-case-title">{current.title}</h3>
+        <p className="playground__case-summary">{current.summary}</p>
+        <Case />
+        <SourcePanel source={current.source} title={current.title} />
+      </article>
     </div>
   );
 }

@@ -132,8 +132,11 @@ export function buildSnippet(state: ExplorerState): string {
         "<Reader",
         ...indent(props, 2),
         ">",
-        "  {/* hypertext renders children instead of content.body */}",
-        "  <p>Your own markup: prose, components, animation.</p>",
+        // A snippet cannot honestly stand in for a gallery case, so it says so
+        // and leaves the seam empty rather than shipping markup that is not there.
+        "  {/* hypertext renders children instead of content.body. This markup is yours. */}",
+        "  {/* The preview mounts the playground gallery here: see playground/gallery. */}",
+        "  {/* your own markup here */}",
         "</Reader>"
       ]
     : ["<Reader", ...indent(props, 2), "/>"];

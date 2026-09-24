@@ -375,7 +375,16 @@ Contributions closing any of these are welcome; see [CONTRIBUTING.md](./CONTRIBU
 ## Demo
 
 **<https://carlosrendonduque.github.io/calamus/>** — the playground, published from `main`.
-It renders a public-domain corpus through all five modes with a mode switcher.
+
+It is a props explorer, not a slideshow: every prop has a live control, the reader sits in a
+box you can resize to watch `book` and `editorial` re-paginate, and a code panel emits the JSX
+for whatever you have set, ready to paste. You can drop your own prose in and read it in all
+five modes.
+
+`hypertext` mode opens a gallery of six worked examples — redaction, a footnote chain, a
+calligram, typographic erosion, a labyrinth and a text that remembers its reader — each
+showing its own source, because in that mode the markup is yours and the library only frames
+it.
 
 To run it locally:
 
