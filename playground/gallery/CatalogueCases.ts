@@ -7,24 +7,16 @@ import { CATEGORY_LABELS, type GalleryCase, type GalleryCategory } from "./types
  * about React, so the ordering rules can be reasoned about on their own.
  */
 
-/** Category order comes from `types.ts`, which lists them by capability. */
-export const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS) as readonly GalleryCategory[];
-
 /**
- * `index.ts` is being rewritten to carry `category` on every case. Until every
- * port has landed the field is read as optional, so a case that predates it is
- * filed under the first category rather than dropped out of the catalogue.
+ * Category order is the key order of `CATEGORY_LABELS`, which `types.ts` states
+ * is the display order. Reading it from there keeps the catalogue exhaustive: a
+ * tenth category would appear here without this file being touched.
  */
-type RegistryCase = Omit<GalleryCase, "category"> & { category?: GalleryCategory };
-
-const REGISTRY: readonly RegistryCase[] = GALLERY_CASES;
+export const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS) as readonly GalleryCategory[];
 
 /** Display order: category order first, registry order inside a category. */
 export const CATALOGUE_CASES: readonly GalleryCase[] = CATEGORY_ORDER.flatMap((category) =>
-  REGISTRY.filter((entry) => (entry.category ?? CATEGORY_ORDER[0]) === category).map((entry) => ({
-    ...entry,
-    category
-  }))
+  GALLERY_CASES.filter((entry) => entry.category === category)
 );
 
 export const CATALOGUE_IDS: readonly string[] = CATALOGUE_CASES.map((entry) => entry.id);

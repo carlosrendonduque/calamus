@@ -27,7 +27,7 @@ type HypertextDemoProps = {
  * Nothing below the reader's header comes from the library.
  */
 export function HypertextDemo({ lines }: HypertextDemoProps) {
-  const [caseId, selectCase] = useCaseRoute(CATALOGUE_IDS);
+  const [caseId, selectCase, openedFromLink] = useCaseRoute(CATALOGUE_IDS);
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [query, setQuery] = useState("");
 
@@ -44,6 +44,14 @@ export function HypertextDemo({ lines }: HypertextDemoProps) {
   const total = CATALOGUE_CASES.length;
   const index = Math.max(indexOfCase(caseId), 0);
   const current = CATALOGUE_CASES[index];
+
+  // A URL that names a case is a request for that case, not for the catalogue:
+  // the example is scrolled to, without taking focus from wherever it is.
+  useEffect(() => {
+    if (openedFromLink) {
+      titleRef.current?.scrollIntoView({ block: "start" });
+    }
+  }, [openedFromLink]);
 
   useEffect(() => {
     if (!wantsFocus.current) {

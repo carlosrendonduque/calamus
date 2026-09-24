@@ -130,6 +130,20 @@ export const THEME_COLOR_KEYS: readonly ThemeColorKey[] = [
 
 export const SPANISH_READING_TIME = "min de lectura";
 
+/**
+ * A `#/gallery/<id>` link is a link to an example, and examples only exist in
+ * hypertext mode. Without this, such a link would open the explorer in `book`
+ * and the visitor would have to know to switch modes before the link they
+ * followed meant anything.
+ */
+function openingMode(): ExplorerState["mode"] {
+  if (typeof window === "undefined") {
+    return "book";
+  }
+
+  return window.location.hash.startsWith("#/gallery/") ? "hypertext" : "book";
+}
+
 export const INITIAL_STATE: ExplorerState = {
   contentPreset: "tristram",
   customTitle: "A note on measurement",
@@ -138,7 +152,7 @@ export const INITIAL_STATE: ExplorerState = {
     "Paste prose here. A blank line starts a new paragraph, and each paragraph becomes one entry of content.body.",
     "The reader never splits a paragraph across a page, so the shape of your text decides where the breaks fall."
   ].join("\n\n"),
-  mode: "book",
+  mode: openingMode(),
   transition: "fade",
   lang: "en",
   themePreset: "default",

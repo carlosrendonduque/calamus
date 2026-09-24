@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * The selected example is addressable: `#/gallery/<id>`. A link to one case can
@@ -49,12 +49,17 @@ function writeCaseId(id: string): void {
  * Keeps one case id in step with the URL. An unknown id falls back to the first
  * case and the URL is rewritten to match, so a stale link lands somewhere real.
  */
-export function useCaseRoute(ids: readonly string[]): [string, (id: string) => void] {
+export function useCaseRoute(
+  ids: readonly string[]
+): [string, (id: string) => void, boolean] {
   const fallback = ids[0];
-  const [caseId, setCaseId] = useState(() => {
-    const requested = requestedCaseId();
-    return requested && ids.includes(requested) ? requested : fallback;
-  });
+  const opened = requestedCaseId();
+  // Whether this mount was asked for a case by its URL, which is the one time
+  // the example rather than the catalogue should be what the visitor lands on.
+  const fromLink = useRef(opened !== null && ids.includes(opened));
+  const [caseId, setCaseId] = useState(() =>
+    opened && ids.includes(opened) ? opened : fallback
+  );
 
   const selected = ids.includes(caseId) ? caseId : fallback;
 
@@ -70,7 +75,14 @@ export function useCaseRoute(ids: readonly string[]): [string, (id: string) => v
         return;
       }
 
-      setCaseId(ids.includes(requested) ? requested : fallback);
+      const next = ids.includes(requested) ? requested : fallback;
+      setCaseId(next);
+
+      // A link to a case that no longer exists should not leave its id sitting
+      // in the address bar: the fallback is written back over it.
+      if (next !== requested) {
+        writeCaseId(next);
+      }
     };
 
     window.addEventListener("hashchange", onHashChange);
@@ -80,5 +92,5 @@ export function useCaseRoute(ids: readonly string[]): [string, (id: string) => v
     };
   }, [ids, fallback]);
 
-  return [selected, setCaseId];
+  return [selected, setCaseId, fromLink.current];
 }

@@ -2,10 +2,10 @@
 
    It lives inside the reader, as children of hypertext mode, so it is styled
    with the library's own tokens and reuses the gallery's pill buttons: change a
-   theme colour in the panel and the catalogue follows. Loaded from
-   HypertextDemo.tsx, which is what puts it after the library's stylesheet and
-   before nothing, so overrides of `.playground__gallery button` are written with
-   two classes rather than relying on order. */
+   theme colour in the panel and the catalogue follows. It is imported from
+   HypertextDemo.tsx, so it can land before explorer.css in the bundle: every
+   override of `.playground__gallery button` is written with two classes and
+   wins on specificity rather than on order. */
 
 .playground__catalogue {
   display: grid;
@@ -32,6 +32,10 @@
 /* The one input in the gallery, shaped after the pill buttons beside it. */
 .playground__gallery .playground__catalogue-input {
   flex: 1 1 11rem;
+  /* An input carries an intrinsic width of about twenty characters, which would
+     hold the row wider than a 320px screen. The explicit width lets it shrink;
+     the flex basis is what it grows back to when there is room. */
+  width: 4rem;
   min-width: 0;
   font: inherit;
   font-family: var(--calamus-mono-font);
@@ -76,12 +80,19 @@
 .playground__catalogue-groups {
   display: grid;
   gap: 0.35rem;
+  /* As many columns as the host box affords, measured against the box rather
+     than the window: nine categories are two or three short columns in a wide
+     frame and one stack on a phone. */
+  /* `min()` keeps the track from demanding 15rem in a box narrower than that,
+     which would push the whole gallery wider than a phone. */
+  grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+  align-items: start;
 }
 
 .playground__catalogue-group {
   border: 1px solid var(--calamus-border);
   border-radius: 10px;
-  padding: 0.5rem 0.7rem;
+  padding: 0.45rem 0.65rem;
 }
 
 .playground__catalogue-group summary {
@@ -108,9 +119,9 @@
 
 .playground__catalogue-blurb {
   display: block;
-  margin-top: 0.15rem;
-  font-size: 0.8rem;
-  line-height: 1.5;
+  margin-top: 0.1rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
   color: var(--calamus-muted);
 }
 
@@ -120,14 +131,6 @@
   padding: 0;
   display: grid;
   gap: 0.35rem;
-}
-
-/* Wide enough for two, at whatever width the host box happens to be: the
-   columns collapse to one on their own when the box is narrow. */
-@media (min-width: 720px) {
-  .playground__catalogue-list {
-    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-  }
 }
 
 .playground__gallery .playground__catalogue-item {
