@@ -16,7 +16,9 @@
 
 export type Scalar = string | number | boolean;
 
-/** A path of at most one dot: `lines`, `item.floor`. Never an expression. */
+/** A name, or names joined by dots: `lines`, `item.floor`, `entry.note.mark`.
+ *  Never an expression — that rule is what stops this becoming a template
+ *  language, and 152 interpolations across the corpus never needed one. */
 export type Path = string;
 
 /* -------------------------------------------------------------------------- */
@@ -33,11 +35,18 @@ export type Expression =
   | { kind: "and"; of: Expression[] }
   | { kind: "or"; of: Expression[] }
   /** `visits(node)` — counts repeats, never a set (three examples need this). */
-  | { kind: "visits"; node: string }
-  | { kind: "visited"; node: string }
+  /** The node may be named literally or reached by a path (`exit.to`). */
+  | { kind: "visits"; node: Path }
+  | { kind: "visited"; node: Path }
   /** `count(group where ...)`, `some(...)`, `first`, `last`, `in`. */
   | { kind: "count"; group: string; where?: Expression }
-  | { kind: "some"; group: string; where?: Expression };
+  | { kind: "some"; group: string; where?: Expression }
+  | { kind: "first"; group: string; where?: Expression }
+  | { kind: "last"; group: string; where?: Expression }
+  /** `in(log, item)` — membership, which is not the same as counting. */
+  | { kind: "in"; group: string; value: Expression }
+  /** `persisted(name)` — whether a value survived a previous reading. */
+  | { kind: "persisted"; name: string };
 
 /* -------------------------------------------------------------------------- */
 /* Groups and logs — one primitive, not two (a log is a group that grows).      */
@@ -59,6 +68,8 @@ export type GroupDef = {
   fields: string[];
   discipline: GroupDiscipline;
   items: GroupItem[];
+  /** A group may instead be a filtered view of another group. */
+  derivedFrom?: { group: string; where?: Expression };
 };
 
 /* -------------------------------------------------------------------------- */
@@ -69,7 +80,16 @@ export type NameDef =
   | { kind: "expression"; of: Expression }
   /** Group first, then quantify inside each group. v0 quantified without
    *  grouping and declared contradictions that did not exist. */
-  | { kind: "grouped"; over: string; by: string; test: "split" | "agree" }
+  | {
+      kind: "grouped";
+      over: string;
+      /** The author's field to group by. */
+      by: string;
+      /** The author's field carrying the answer. Without it the test compares
+       *  every other field and every bucket splits, because the prose differs. */
+      answer?: string;
+      test: "split" | "agree";
+    }
   /** Resolved by the registry's `derivations` namespace. */
   | { kind: "derivation"; name: string; params: Record<string, unknown> };
 
@@ -78,8 +98,8 @@ export type NameDef =
 /* -------------------------------------------------------------------------- */
 
 export type PhraseCase = {
-  /** `is: n` is sugar for `when: on == n`. */
-  is?: number;
+  /** `is: v` is sugar for `when: on == v`, for a number or a boolean. */
+  is?: number | boolean;
   when?: Expression;
   /** The clause. May carry `{name}` and `{item.field}` interpolations. */
   say: string;
@@ -93,7 +113,12 @@ export type PhraseDef = {
   of?: string;
   /** Registry name of a plural selector. `exact` covers es/en/fr/de/it/pt. */
   plural?: string;
-  cases: PhraseCase[];
+  /** Joining a list: the author supplies the separators literally, because
+   *  Spanish turns "y" into "e" before i- and the library must never choose. */
+  list?: { of: string; field: string; sep: string; last: string };
+  /** A phrase with nothing to choose between is a single unconditional clause. */
+  say?: string;
+  cases?: PhraseCase[];
 };
 
 /* -------------------------------------------------------------------------- */
@@ -122,9 +147,16 @@ export type Inline =
   /** `{name}` or `{item.field}`. Always escaped, never recursive. */
   | { kind: "interpolation"; path: Path }
   /** `:mark[...]{kind=...}` — the kind is an authored name. */
-  | { kind: "mark"; markKind: string; children: Inline[] }
+  | { kind: "mark"; markKind: string; when?: Expression; children: Inline[] }
   /** `:go{to=}` navigates, `:go{show=}` reveals, `:do{move=}` writes. */
-  | { kind: "affordance"; action: "go" | "show" | "do"; target: string; focus?: boolean; children: Inline[] }
+  | {
+      kind: "affordance";
+      action: "go" | "show" | "do";
+      target: string;
+      focus?: boolean;
+      when?: Expression;
+      children: Inline[];
+    }
   /** `:slot[...]{name=...}` — inline registry view. */
   | { kind: "slot"; name: string; params: Record<string, unknown>; children: Inline[] };
 
@@ -140,14 +172,26 @@ export type BlockAttrs = {
   voice?: string;
   lang?: string;
   mark?: string;
-  live?: boolean;
+  /** `true`, or the ARIA politeness the author asked for (`polite`, `status`). */
+  live?: boolean | string;
+  /** A role the author names (`heading`, `caption`, `time`), not a number. */
+  role?: string;
 };
 
 export type Block =
   | { kind: "paragraph"; attrs: BlockAttrs; content: Inline[] }
   | { kind: "heading"; level: 1 | 2 | 3; content: Inline[] }
   /** `:each{of=group where ...}` followed by the blocks it prints per item. */
-  | { kind: "each"; group: string; where?: Expression; body: Block[] }
+  | {
+      kind: "each";
+      group: string;
+      where?: Expression;
+      /** Registry `orders` name. Exit order is structure, not presentation. */
+      order?: string;
+      /** Reader-facing prose when nothing matches. Losing it loses prose. */
+      empty?: Block[];
+      body: Block[];
+    }
   /** A named region, revealed in place. Distinct from a node, which replaces. */
   | { kind: "region"; id: string; body: Block[] }
   /** A registry view occupying a block. */
@@ -165,10 +209,16 @@ export type Exit = {
   to: string;
   label: string;
   when?: Expression;
+  /** Reader-facing prose on the exit itself ("seen"), not a style. */
+  note?: string;
+  /** Logs or variables this exit returns to their opening value. */
+  resets?: string[];
 };
 
 export type NodeDef = {
   id: string;
+  /** Printed when the trail names this node back to the reader. */
+  title?: string;
   /** "May I enter here?" — the second of the two gates. */
   requires?: Expression;
   /** "May I leave that way?" — the first gate lives on the exit. */
@@ -185,6 +235,11 @@ export type Opens = {
   trail?: string[];
   /** Two examples open mid-reading on purpose. */
   readings?: number;
+  /** A document may open with a log already holding entries, or a variable
+   *  already moved, because a text with no trace cannot show that it keeps one. */
+  /** Entries, or just how many — a text with no trace cannot show it keeps one. */
+  logs?: Record<string, GroupItem[] | number>;
+  variables?: Record<string, Scalar | Scalar[]>;
 };
 
 export type NarrativeDocument = {
@@ -199,6 +254,11 @@ export type NarrativeDocument = {
   /** Registry names the document uses, so a second implementation can validate
    *  it without the registry. Yarn Spinner could not do this. */
   uses: { name: string; kind: RegistryKind }[];
+  /** Author-declared vocabularies. The schema stores them and reads none of
+   *  them: a mark kind, a move name and a control are the author's words. */
+  marks: Record<string, Record<string, Scalar>>;
+  moves: Record<string, { writes: string[] }>;
+  controls: Record<string, Record<string, Scalar>>;
   /** A document with no nodes is the flat case: prose in order (decision 22). */
   nodes: NodeDef[];
   /** Used only when `nodes` is empty. */
@@ -218,6 +278,17 @@ export type ReadingState = {
   readings: number;
 };
 
+/** What a reader's gesture asks of the document. The renderer and the evaluator
+ *  must agree on this, so it belongs here rather than in either of them. */
+export type Move =
+  | { kind: "enter"; node: string }
+  | { kind: "back" }
+  | { kind: "set"; name: string; value: Scalar | Scalar[] }
+  | { kind: "add"; log: string; item: GroupItem }
+  | { kind: "remove"; log: string; at: number | string }
+  | { kind: "mark"; log: string; at: number | string; field: string }
+  | { kind: "reset"; names: string[] };
+
 /* -------------------------------------------------------------------------- */
 /* Registry — five namespaces, because two of fourteen are not components      */
 /* -------------------------------------------------------------------------- */
@@ -231,7 +302,7 @@ export type OrderFn = (ids: string[], state: ReadingState) => string[];
 export type DerivationFn = (
   params: Record<string, unknown>,
   state: ReadingState
-) => { items?: GroupItem[] } & Record<string, Scalar>;
+) => { items?: GroupItem[]; values?: Record<string, Scalar> };
 
 /** A plural selector picks a case index. `exact` matches integers. */
 export type PluralFn = (n: number) => number | null;
