@@ -32,6 +32,7 @@ import type {
   BlockAttrs,
   Diagnostic,
   Exit,
+  Expression,
   GroupItem,
   Inline,
   NarrativeDocument,
@@ -40,6 +41,8 @@ import type {
   Scalar,
   VariableDef,
 } from "./types";
+import type { AnyExpression } from "./shapes";
+import { parseExpression } from "./expression";
 import type { Scope, Value } from "./evaluator";
 import {
   asText,
@@ -54,7 +57,14 @@ import {
   truthy,
 } from "./evaluator";
 import { markupAttribute, plainText } from "./text";
-import type { AffordanceProps, DocumentRegistry, SlotContext, SlotPass, SlotValue } from "./registry";
+import type {
+  AffordanceProps,
+  DocumentRegistry,
+  MarkComponent,
+  SlotContext,
+  SlotPass,
+  SlotValue,
+} from "./registry";
 import { EMPTY_REGISTRY, isPermutation } from "./registry";
 import type { Gesture } from "./moves";
 import {
@@ -143,12 +153,15 @@ export function renderDocument(options: RenderOptions): RenderResult {
   const diagnostics: Diagnostic[] = [];
   const live: string[] = [];
 
+  const walked = trailAsGroup(document, options.state);
+
   const scope = scopeFromDocument(document, options.state, {
     registry: {
       plurals: options.registry?.plurals,
       derivations: options.registry?.derivations,
       orders: options.registry?.orders,
     },
+    groups: walked ? { [TRAIL]: walked } : undefined,
     persisted: options.persisted ?? (options.state.readings ?? 1) > 1,
   });
 
@@ -169,7 +182,18 @@ export function renderDocument(options: RenderOptions): RenderResult {
   };
 
   const here = nodeHere(document, options.state, diagnostics, scope);
-  const blocks = here ? here.body : document.body;
+
+  // The document's own body **frames** the node, rather than preceding the first
+  // one. An island is a header and the prose that follows belongs to it until
+  // the next, so prose written *before* the first header belongs to no node —
+  // which leaves only the document. `labyrinth` is the proof: the block that
+  // stands there is the trail, "Your route so far", and a trail that showed only
+  // until the reader took their first exit would disappear at the exact moment
+  // it began to say anything. Read as a preamble it is prose the renderer
+  // silently drops on nineteen of the twenty screens; read as a frame it is on
+  // every one of them, which is the only reading under which the document keeps
+  // its words (decision 28).
+  const blocks = here ? [...document.body, ...here.body] : document.body;
 
   return {
     here,
@@ -179,6 +203,39 @@ export function renderDocument(options: RenderOptions): RenderResult {
     live: live.filter(Boolean).join(" "),
     diagnostics,
   };
+}
+
+/**
+ * The reading's own trail, as a group the prose can print.
+ *
+ * `trail` is the schema's word, not an author's: `Opens.trail` and
+ * `ReadingState.trail` are both keys of the contract, so a document that writes
+ * `opens: { trail: [platform] }` and then `each: trail` is naming the schema's
+ * trail twice, the way it names `count` or `visits` (decision 30 is about the
+ * author's vocabulary, and this is not in it). What each entry carries is the
+ * contract's too: `NodeDef.title` exists, in its own words, to be "printed when
+ * the trail names this node back to the reader", and until now nothing printed
+ * it.
+ *
+ * Supplied only when the reading has a trail to print — a document with nodes —
+ * and only when nothing else has claimed the name: a declared group with items
+ * of its own, or a log the reading has written, is the author's and wins.
+ */
+const TRAIL = "trail" satisfies keyof ReadingState;
+
+function trailAsGroup(document: NarrativeDocument, state: ReadingState): GroupItem[] | undefined {
+  if (!document.nodes || document.nodes.length === 0) {
+    return undefined;
+  }
+
+  if ((document.groups?.[TRAIL]?.items?.length ?? 0) > 0) return undefined;
+  if ((state.logs?.[TRAIL]?.length ?? 0) > 0) return undefined;
+
+  return state.trail.map((step) => {
+    const node = document.nodes.find((candidate) => candidate.id === step);
+
+    return node?.title ? ({ id: step, title: node.title } as GroupItem) : ({ id: step } as GroupItem);
+  });
 }
 
 /**
@@ -283,9 +340,15 @@ function renderParagraph(
     ctx.live.push(textOf(block.content, ctx));
   }
 
+  // `mark=` on a paragraph is the same mark as `:mark[…]` and reaches the same
+  // registry: `two-accounts` and `evidence-score` both write it, and both say so
+  // — "the mark is of the whole line". Drawn by the host entry the author's
+  // `as:` names, and drawn only when the mark's own condition holds.
+  const mark = block.attrs.mark ? markFor(block.attrs.mark, undefined, ctx) : null;
+
   return (
-    <p key={path} className="calamus__paragraph" {...attributesOf(block.attrs, ctx)}>
-      {content}
+    <p key={path} className="calamus__paragraph" {...attributesOf(block.attrs, ctx, { mark })}>
+      {mark && mark.applies ? drawMark(mark, content, ctx, `${path}#`) : content}
     </p>
   );
 }
@@ -330,7 +393,7 @@ function renderEach(block: Extract<Block, { kind: "each" }>, ctx: Ctx, path: str
   if (block.where) {
     const where = block.where;
     items = items.filter((item) => {
-      const kept = gate(where, itemScope(ctx.scope, item));
+      const kept = gate(where, itemScope(ctx.scope, unmarked(block.group, item, ctx)));
       ctx.diagnostics.push(...kept.diagnostics);
       return kept.value;
     });
@@ -379,7 +442,7 @@ function renderItem(
   path: string,
   current: string | null
 ): ReactNode {
-  const inner: Ctx = { ...ctx, scope: itemScope(ctx.scope, item) };
+  const inner: Ctx = { ...ctx, scope: itemScope(ctx.scope, unmarked(block.group, item, ctx)) };
   const key = `${path}.${typeof item.id === "string" ? item.id : index}`;
   const attrs = block.attrs ?? {};
 
@@ -401,6 +464,38 @@ function renderItem(
       {renderBlocks(block.body, inner, key)}
     </li>
   );
+}
+
+/**
+ * An entry of a log, with the fields its group declared **markable** filled in
+ * as not yet marked.
+ *
+ * A markable field is the one kind of field the schema itself writes: `marks:
+ * [struck]` says a later gesture may write `struck` onto an entry that is
+ * already in the book, and the reducer writes it as `true`. Until that gesture,
+ * the entry simply does not carry the field — and `item.struck` then reads as an
+ * expression that *cannot be read*, which decision 28 answers with **show**. So
+ * `reader-path` ruled every standing line through and badged it "struck" while
+ * the sentence beneath it counted none, and the honest fix is not to weaken the
+ * gate: it is that an unwritten mark is not an unreadable name. It is `false`,
+ * and the group said so when it declared the field.
+ */
+function unmarked(group: string, item: GroupItem, ctx: Ctx): GroupItem {
+  const markable = ctx.document.groups?.[group]?.discipline?.marks;
+
+  if (!markable || markable.length === 0) {
+    return item;
+  }
+
+  let filled: GroupItem | null = null;
+
+  for (const field of markable) {
+    if (Object.prototype.hasOwnProperty.call(item, field)) continue;
+    filled = filled ?? ({ ...item } as GroupItem);
+    (filled as Record<string, Scalar>)[field] = false;
+  }
+
+  return filled ?? item;
 }
 
 function ordered(items: GroupItem[], name: string | undefined, ctx: Ctx): GroupItem[] {
@@ -622,25 +717,23 @@ function renderInline(item: Inline, ctx: Ctx, path: string): ReactNode {
  */
 function renderMark(item: Extract<Inline, { kind: "mark" }>, ctx: Ctx, path: string): ReactNode {
   const children = renderInlines(item.children, ctx, path);
-  const vocabulary = ctx.document.marks?.[item.markKind] ?? {};
-  const entryName = typeof vocabulary.as === "string" ? vocabulary.as : item.markKind;
-  const note = typeof vocabulary.note === "string" ? plainText(vocabulary.note, ctx.scope) : undefined;
+  const plan = markFor(item.markKind, item.when, ctx);
 
-  const passed = gate(item.when, ctx.scope);
-  ctx.diagnostics.push(...passed.diagnostics);
-
-  const entry = passed.value ? ctx.registry.marks?.[entryName] : undefined;
-
-  if (!entry) {
-    if (passed.value && ctx.registry.marks && !ctx.registry.marks[entryName]) {
-      ctx.diagnostics.push({
-        severity: "warning",
-        message: `no \`marks\` entry registered under \`${entryName}\`; the text printed unmarked`,
-      });
-    }
-
+  // A mark that does not apply keeps its words and drops every claim about
+  // them. `motif-passes` is why the words stay: `:mark[door]{kind=kept
+  // when=keeping}` marks a noun in the middle of a sentence, and taking it out
+  // when the pass is off would leave "The inventory lists one on the landing."
+  if (!plan.applies) {
     return (
-      <span key={path} className="calamus__mark" data-mark={item.markKind} title={note}>
+      <span key={path} className="calamus__mark">
+        {children}
+      </span>
+    );
+  }
+
+  if (!plan.entry) {
+    return (
+      <span key={path} className="calamus__mark" data-mark={item.markKind} title={plan.note}>
         {children}
       </span>
     );
@@ -648,14 +741,146 @@ function renderMark(item: Extract<Inline, { kind: "mark" }>, ctx: Ctx, path: str
 
   return (
     <span key={path} className="calamus__mark" data-mark={item.markKind}>
-      {entry({
-        children,
-        note,
-        markKind: item.markKind,
-        ctx: slotContext(entryName, `${ctx.prefix}:${path}`, {}, children, ctx),
-      })}
+      {drawMark(plan, children, ctx, path)}
     </span>
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* What a mark claims, and whether it is entitled to claim it                  */
+/* -------------------------------------------------------------------------- */
+
+/** A mark, resolved: whether it applies here, what draws it, and what it says. */
+type MarkPlan = {
+  /** The author's kind, which is what travels as data. */
+  kind: string;
+  /** The name the `marks` namespace is asked for: `as:`, or the kind itself. */
+  entryName: string;
+  /** Both conditions held, so the mark is genuinely on this text. */
+  applies: boolean;
+  /** The author's accessible note, resolved in the scope that carries the mark. */
+  note?: string;
+  /** The host's drawing, when one is registered and the mark applies. */
+  entry?: MarkComponent;
+};
+
+/**
+ * A mark carries **two** conditions and both have to hold.
+ *
+ * One is written at the use site — `:mark[opened]{kind=opened when="…"}` — and
+ * one beside the declaration — `badge: { as: note, when: "item.struck" }`. The
+ * second is where the corpus puts almost all of them, because that is the only
+ * place with a defined scope: "every expression is read in the scope of the
+ * thing that carries it", and the thing that carries a mark is the line being
+ * printed. Evaluating only the first left `reader-path` badging every standing
+ * line "struck" while the sentence under it counted none.
+ *
+ * A false condition is not a failure to read anything: `gate` answers *true* for
+ * an expression it cannot evaluate (decision 28), so by the time this returns
+ * `false` the author has said no. That is the same "no" a paragraph's `when:`
+ * gives, and it takes the mark — never the words.
+ */
+function markFor(kind: string, atUse: Expression | undefined, ctx: Ctx): MarkPlan {
+  const vocabulary = ctx.document.marks?.[kind] ?? {};
+  const entryName = typeof vocabulary.as === "string" ? vocabulary.as : kind;
+  const note = typeof vocabulary.note === "string" ? plainText(vocabulary.note, ctx.scope) : undefined;
+
+  const here = gate(atUse, ctx.scope);
+  ctx.diagnostics.push(...here.diagnostics);
+
+  let applies = here.value;
+
+  if (applies) {
+    const declared = declaredCondition(vocabulary.when, ctx);
+
+    if (declared) {
+      const passed = gate(declared, ctx.scope);
+      ctx.diagnostics.push(...passed.diagnostics);
+      applies = passed.value;
+    }
+  }
+
+  const plan: MarkPlan = { kind, entryName, applies, note };
+
+  if (!applies) {
+    return plan;
+  }
+
+  const entry = ctx.registry.marks?.[entryName];
+
+  if (entry) {
+    plan.entry = entry;
+    return plan;
+  }
+
+  // Only when the host is serving marks at all. A reading with no `marks`
+  // namespace has not failed to register anything; it has declined the
+  // namespace, and the documented fall — unmarked text, accessible note kept —
+  // is what it asked for.
+  if (ctx.registry.marks) {
+    ctx.diagnostics.push({
+      severity: "warning",
+      message: `no \`marks\` entry registered under \`${entryName}\`; the text printed unmarked`,
+    });
+  }
+
+  return plan;
+}
+
+/** The host's drawing, called with the one frozen argument every entry gets. */
+function drawMark(plan: MarkPlan, children: ReactNode, ctx: Ctx, path: string): ReactNode {
+  const entry = plan.entry;
+
+  if (!entry) {
+    return children;
+  }
+
+  try {
+    return entry({
+      children,
+      note: plan.note,
+      markKind: plan.kind,
+      ctx: slotContext(plan.entryName, `${ctx.prefix}:${path}`, {}, children, ctx),
+    });
+  } catch {
+    // Host code compiled into the page. One that throws must not take the
+    // reading with it (decision 28), and the text is the reserve.
+    ctx.diagnostics.push({
+      severity: "warning",
+      message: `the \`marks\` entry \`${plan.entryName}\` threw; the text printed unmarked`,
+    });
+    return children;
+  }
+}
+
+/**
+ * The `when:` of a `marks:` declaration, which arrives as the author wrote it.
+ *
+ * `NarrativeDocument.marks` holds a vocabulary of scalars — the schema stores
+ * the author's keys and reads none of them — so the condition is still a string
+ * here and has to be read. It is cached on the string itself: the same six
+ * declarations are re-read on every keystroke of the document view, and the
+ * diagnostics are cached with the expression so a condition that cannot be read
+ * still says so every time rather than only the first.
+ */
+const CONDITIONS = new Map<string, { expression: AnyExpression; diagnostics: Diagnostic[] }>();
+
+function declaredCondition(said: Scalar | undefined, ctx: Ctx): AnyExpression | undefined {
+  if (typeof said !== "string" || said.trim() === "") {
+    return undefined;
+  }
+
+  let read = CONDITIONS.get(said);
+
+  if (!read) {
+    const diagnostics: Diagnostic[] = [];
+    read = { expression: parseExpression(said, 0, diagnostics), diagnostics };
+    CONDITIONS.set(said, read);
+  }
+
+  ctx.diagnostics.push(...read.diagnostics);
+
+  return read.expression;
 }
 
 function renderInlineAffordance(
@@ -1350,14 +1575,25 @@ function listOfStrings(value: unknown): string[] {
 function attributesOf(
   attrs: BlockAttrs,
   ctx: Ctx,
-  options: { withId?: boolean } = {}
+  options: { withId?: boolean; mark?: MarkPlan | null } = {}
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
 
   if (attrs.lang) out.lang = attrs.lang;
   if (attrs.role) out["data-role"] = attrs.role;
   if (attrs.voice) out["data-voice"] = attrs.voice;
-  if (attrs.mark) out["data-mark"] = attrs.mark;
+
+  // `data-mark` is a claim about the block, and a host styles it from outside on
+  // exactly that claim. Written unconditionally it painted all three of
+  // `evidence-score`'s claims as hedged and both of `two-accounts`' columns as
+  // disputed, at every value of the dial — so the attribute goes on only when
+  // the mark's condition holds. The block's prose is never touched: the line is
+  // always there and only the rule beside it comes and goes.
+  if (attrs.mark) {
+    const mark = options.mark === undefined ? markFor(attrs.mark, undefined, ctx) : options.mark;
+    if (mark && mark.applies) out["data-mark"] = attrs.mark;
+  }
+
   if (attrs.weight !== undefined) out["data-weight"] = attrs.weight;
   if (attrs.live) out["data-live"] = attrs.live === true ? "polite" : attrs.live;
 

@@ -21,7 +21,6 @@ marks:
   # Both conditions live in the declaration, and both are read in the scope of
   # the entry being printed: the line is ruled through and the word is a badge.
   withdrawn: { as: strike, when: "item.struck", note: withdrawn }
-  badge:     { as: note,   when: "item.struck" }
 moves:
   # The gesture names itself; what it writes is declared once, here.
   cross-to:
@@ -33,6 +32,14 @@ names:
   here: last(book where not struck)
   returns: count(book where not struck and place == here.place)
 phrases:
+  # Text that is only sometimes there is a clause that is sometimes empty. A
+  # conditional mark cannot do it: a marked span is always there, and its
+  # children print whether or not the mark applies.
+  badge-line:
+    of: item
+    cases:
+      - { when: "item.struck", say: " struck" }
+      - { say: "" }
   lines-standing:
     on: standing
     cases:
@@ -67,7 +74,7 @@ current: here
 ```
 
 :with{mark=withdrawn}
-{item.place}:mark[struck]{kind=badge}
+{item.place}{badge-line}
 
 ```calamus
 end

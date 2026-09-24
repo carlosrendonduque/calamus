@@ -304,7 +304,11 @@ export type NarrativeDocument = {
    *  hears. Those keys are the author's, stored and never read by the schema. */
   moves: Record<string, { writes: string[] } & Record<string, unknown>>;
   controls: Record<string, Record<string, Scalar>>;
-  /** A document with no nodes is the flat case: prose in order (decision 22). */
+  /** The document's own prose: the blocks standing before the first node header,
+   *  and the whole body when there are no nodes. It **frames** the node the
+   *  reader is on rather than replacing it, so a trail or a standing apparatus
+   *  written at the top of the file is on every screen — which is the only way
+   *  to say it, since nothing else prints around whichever node is current. */
   nodes: NodeDef[];
   /** Used only when `nodes` is empty. */
   body: Block[];

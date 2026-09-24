@@ -51,6 +51,17 @@ type Context = {
   diagnostics: Diagnostic[];
   /** Registry names the document reaches for, gathered as they are met. */
   uses: Map<string, RegistryKind>;
+  /**
+   * What a `slots:` declaration said, by slot name.
+   *
+   * The declaration is where the rich data goes — `with: rules`, `bind: { label:
+   * name }` — because an inline directive's attributes are only strings
+   * (decision 27), and it is read before the body, so every use of the name can
+   * be given what it declared. `NarrativeDocument` has no field for a slot
+   * declaration and `types.ts` is the contract, so the parameters travel where
+   * the renderer already looks for them: on each appearance of the slot.
+   */
+  slots: Map<string, Record<string, unknown>>;
 };
 
 const VARIABLE_TYPES = ["number", "boolean", "enum", "string", "list"];
@@ -60,7 +71,7 @@ const REMOVES = ["none", "last", "any"];
 const TESTS = ["split", "agree"];
 
 export function parse(source: string): ParseResult {
-  const context: Context = { diagnostics: [], uses: new Map() };
+  const context: Context = { diagnostics: [], uses: new Map(), slots: new Map() };
   const normalised = source.replace(/\r\n?/g, "\n").replace(/^﻿/, "");
 
   const document: NarrativeDocument = {
@@ -220,14 +231,18 @@ function readFrontMatter(node: YamlNode, document: NarrativeDocument, context: C
         }
         break;
       case "slots":
+        // The island is YAML, so a parameter may be a table, a list or a map of
+        // roles to the author's fields — which is the whole reason the format
+        // has an island and not only an inline directive. Read whole here and
+        // carried to every appearance of the name, so a `views` entry receives
+        // `params`, `bind` and `items` rather than an empty projection.
         for (const declaration of mapEntriesOf(item.value, "slots", context)) {
           context.uses.set(declaration.key, "views");
+          const declared = readData(declaration.value);
+          if (declared && typeof declared === "object" && !Array.isArray(declared)) {
+            context.slots.set(declaration.key, declared as Record<string, unknown>);
+          }
         }
-        context.diagnostics.push({
-          severity: "warning",
-          message: "`slots:` declares slot parameters, and `NarrativeDocument` has nowhere to keep them; only the names were kept.",
-          line: item.line,
-        });
         break;
       case "calamus":
         context.diagnostics.push({
@@ -909,14 +924,11 @@ function readBody(source: string, firstLine: number, document: NarrativeDocument
   if (document.nodes.length === 0) {
     document.body = preamble;
   } else if (preamble.length > 0) {
-    // `body` is the flat case, used only when there are no nodes. Prose before
-    // the first node header has nowhere else to go, and losing it is worse.
+    // An island is a header and the prose after it belongs to it, so prose
+    // before the first header belongs to no node — which leaves the document.
+    // The renderer prints it around whichever node the reader is on, which is
+    // the only reading under which `labyrinth`'s trail is ever seen.
     document.body = preamble;
-    context.diagnostics.push({
-      severity: "warning",
-      message: `${preamble.length} block${preamble.length === 1 ? "" : "s"} stand before the first node header; the contract keeps \`body\` for the case with no nodes, and they were put there.`,
-      line: firstLine,
-    });
   }
 }
 
@@ -1019,10 +1031,16 @@ function readIsland(content: string, firstLine: number, raw: string, context: Co
     if (node.kind === "map") {
       for (const field of node.entries) {
         if (field.key === "slot") continue;
-        params[field.key] = field.value.kind === "seq" ? field.value.items.map((item) => scalar(item)) : scalar(field.value);
+        // `bind: { label: name, series: route }` is a map, and reading it as a
+        // scalar wrote `null` where the roles were: the projection the contract
+        // calls `bind` never reached the entry.
+        params[field.key] = readData(field.value);
       }
     }
-    return { kind: "block", block: { kind: "slot", name, params, body: [] } };
+    return {
+      kind: "block",
+      block: { kind: "slot", name, params: withDeclaredParams(name, params, context), body: [] },
+    };
   }
 
   context.diagnostics.push({
@@ -1350,12 +1368,68 @@ function readProse(chunk: string[], firstLine: number, context: Context): Block[
   }
 
   const content: Inline[] = parseInline(source.replace(/^\n/, ""), line, context.diagnostics);
-  for (const item of content) {
-    if (item.kind === "slot") context.uses.set(item.name, "views");
-    if (item.kind === "mark") context.uses.set(item.markKind, "marks");
-  }
+  noteInlineUses(content, context);
   if (content.length > 0 || Object.keys(attrs).length > 0) blocks.push({ kind: "paragraph", attrs, content });
   return blocks;
+}
+
+/**
+ * The registry names a line of prose reaches for, and the parameters its slots
+ * declared, both gathered on the way past.
+ *
+ * A `:slot` may sit inside a mark or inside an affordance's children, so this
+ * descends: the shallow pass it replaces missed those, and a slot that is not in
+ * `uses:` is one a host cannot be told about before anything renders.
+ */
+function noteInlineUses(content: Inline[], context: Context): void {
+  for (const item of content) {
+    if (item.kind === "slot") {
+      context.uses.set(item.name, "views");
+      item.params = withDeclaredParams(item.name, item.params, context);
+    }
+
+    if (item.kind === "mark") context.uses.set(item.markKind, "marks");
+    if ("children" in item) noteInlineUses(item.children, context);
+  }
+}
+
+/**
+ * What a slot receives: what `slots:` declared for the name, under what this
+ * appearance wrote.
+ *
+ * The use site wins, because it is the nearer statement — `:slot{name=rewrite
+ * over=other-line}` is the author narrowing one appearance — and the
+ * declaration is what carries everything an inline directive cannot hold.
+ */
+function withDeclaredParams(
+  name: string,
+  params: Record<string, unknown>,
+  context: Context
+): Record<string, unknown> {
+  const declared = context.slots.get(name);
+
+  return declared ? { ...declared, ...params } : params;
+}
+
+/**
+ * A YAML node as plain data: scalars stay scalars, sequences become arrays and
+ * maps become objects.
+ *
+ * Only for the places the contract says are data rather than vocabulary — a
+ * slot's parameters — where the shape is the author's and the schema reads none
+ * of it (decision 30, contrato-ranuras §1.2).
+ */
+function readData(node: YamlNode | null): unknown {
+  if (!node) return null;
+  if (node.kind === "seq") return node.items.map((item) => readData(item));
+
+  if (node.kind === "map") {
+    const out: Record<string, unknown> = {};
+    for (const field of node.entries) out[field.key] = readData(field.value);
+    return out;
+  }
+
+  return scalar(node);
 }
 
 function blockAffordance(directive: Directive, line: number, context: Context): Block {

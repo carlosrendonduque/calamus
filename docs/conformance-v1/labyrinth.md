@@ -32,7 +32,7 @@ phrases:
 
 ```calamus
 each: trail
-label: Your route so far
+heading: Your route so far
 ```
 
 {item.title}

@@ -20,7 +20,7 @@ groups:
   # one written.
   held: { fields: [statement], keeps: unique, removes: any }
 marks:
-  clash: { as: highlight, note: these will not hold together }
+  clash: { as: highlight, when: "clashes > 0", note: these will not hold together }
 names:
   # Grouped before it is quantified: `split` asks whether one claim has been
   # answered both ways, not whether two answers of opposite sign exist anywhere.

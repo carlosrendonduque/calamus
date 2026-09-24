@@ -14,7 +14,7 @@ import type { DocumentRegistry, MarkComponent, ReadingState } from "../../src";
  * `hedge`, `rule`. This is the whole point of `as:` — the kind is the author's
  * word and the entry is the host's — and it is also the only way a conditional
  * mark can be seen at all, because an entry is invoked **only when the mark's
- * condition holds** while the `data-mark` attribute is written either way.
+ * condition holds** while the `data-mark` attribute is written only when the mark's condition holds.
  *
  * **`views`.** Neither of the two the nineteen ask for can be served honestly
  * from here. `meta-editor` declares its slot's parameters under `slots:` and the

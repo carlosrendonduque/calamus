@@ -37,7 +37,7 @@ import type {
   VariableDef,
 } from "./types";
 import type { Move, Scope, Value } from "./evaluator";
-import { asText, evaluate, initialState, isScalar, reduce, truthy } from "./evaluator";
+import { asText, evaluate, initialState, isItem, isScalar, readPath, reduce, truthy } from "./evaluator";
 import { plainText } from "./text";
 
 /* -------------------------------------------------------------------------- */
@@ -124,6 +124,34 @@ export function openingValues(document: NarrativeDocument): {
   return { variables, logs };
 }
 
+/**
+ * The schema's own name for the reading's trail — a key of `Opens` and a key of
+ * `ReadingState`, so a document that writes `opens: { trail: [platform] }` and
+ * `resets: trail` is naming the same schema word twice.
+ */
+const TRAIL = "trail";
+
+/** The schema's older sugar for `opens:` (conformance README §5.4), which the
+ *  corpus writes as the destination of an exit: "Return to the start". */
+const START = "start";
+
+/**
+ * Where a reading starts, as a trail.
+ *
+ * The starting node is *in* the trail (formato.md §7), so a document that
+ * declares none opens on its first node with one step already taken, which is
+ * what `visits(here) == 1` on the opening screen means.
+ */
+function openingTrail(document: NarrativeDocument): string[] {
+  const opened = document.opens?.trail;
+
+  if (opened && opened.length > 0) return [...opened];
+
+  const first = document.nodes?.[0];
+
+  return first ? [first.id] : [];
+}
+
 /** A reset of names, resolved against what the document opened on. */
 export function resetOf(names: string[], document: NarrativeDocument): Move {
   const opening = openingValues(document);
@@ -132,6 +160,16 @@ export function resetOf(names: string[], document: NarrativeDocument): Move {
   const logs: Record<string, GroupItem[]> = {};
 
   for (const name of names) {
+    // The trail first, and before the logs: a document may also declare a group
+    // under the schema's name to state its discipline — `labyrinth` writes
+    // `trail: { keeps: duplicates, removes: last }`, which is the trail's own
+    // behaviour — and emptying that log would leave "Return to the start"
+    // pressing nothing.
+    if (name === TRAIL) {
+      move.trail = openingTrail(document);
+      continue;
+    }
+
     if (Object.prototype.hasOwnProperty.call(opening.logs, name)) {
       logs[name] = opening.logs[name];
       continue;
@@ -158,7 +196,7 @@ export function resetOf(names: string[], document: NarrativeDocument): Move {
 /* -------------------------------------------------------------------------- */
 
 /** One control's spelled-out gesture, as `parse.ts` built it, made runnable. */
-export function fromContractMove(move: ContractMove, document: NarrativeDocument): Move[] {
+export function fromContractMove(move: ContractMove, document: NarrativeDocument, scope?: Scope): Move[] {
   switch (move.kind) {
     case "enter":
       return [{ kind: "enter", node: move.node }];
@@ -173,8 +211,16 @@ export function fromContractMove(move: ContractMove, document: NarrativeDocument
     // this function existed for was the symptom of two `Move` types, not a fix.
     case "add":
     case "remove":
-    case "mark":
       return [move];
+
+    // "The caller resolves the address and hands over an index, an id or a
+    // match" — `state.ts` says so where `EntryAddress` is consumed, and this is
+    // the caller. `reader-path` writes `mark: { log: book, entry: here, field:
+    // struck }`, where `here` is a **declared name** standing for an entry, not
+    // an id; handed on unresolved it addressed nothing and "Withdraw the last
+    // line" did nothing on every press.
+    case "mark":
+      return [addressedMark(move, scope)];
 
     case "reset":
       // There is one `Move` now, so a reset arrives in the shape the reducer
@@ -184,6 +230,65 @@ export function fromContractMove(move: ContractMove, document: NarrativeDocument
     default:
       return [];
   }
+}
+
+/**
+ * A `mark:` whose entry is **named** rather than identified, resolved against
+ * the reading.
+ *
+ * `state.ts` says where `EntryAddress` is consumed that "the caller resolves the
+ * address and hands over an index, an id or a match", and this is the caller.
+ * `reader-path` writes `mark: { log: book, entry: here, field: struck }`, where
+ * `here` is `last(book where not struck)` — a declared name standing for an
+ * entry, not an id. Handed on unresolved it addressed nothing, and "Withdraw the
+ * last line" did nothing on every press.
+ *
+ * The one subtlety is the id itself. An entry of a growing log has none, so the
+ * evaluator gives it the positional handle `<log>:<index>` ("entries an author
+ * wrote without an id still need one to be removed by it") — and that handle is
+ * not on the stored entry, so it has to be read back as the position it is.
+ */
+function addressedMark(move: Extract<Move, { kind: "mark" }>, scope: Scope | undefined): Move {
+  const at = move.address?.at;
+
+  if (!scope || typeof at !== "string") return move;
+
+  const entries = scope.state.logs[move.log] ?? [];
+  const found = addressOf(at, move.log, entries);
+
+  if (found) return { ...move, address: found };
+
+  const named = readPath(at, scope);
+
+  if (isItem(named)) {
+    const handle = typeof named.id === "string" ? addressOf(named.id, move.log, entries) : undefined;
+
+    if (handle) return { ...move, address: handle };
+
+    // No handle at all: the fields the entry was written with, and the last of
+    // the entries carrying them, because a log keeps repeats.
+    const { id: _id, ...fields } = named;
+
+    return { ...move, address: { match: entryOf(fields as GroupItem), from: "last" } };
+  }
+
+  if (isScalar(named)) return { ...move, address: { at: typeof named === "number" ? named : String(named) } };
+
+  return move;
+}
+
+/** An id an entry really carries, or the positional handle the evaluator hands
+ *  out for one that carries none, read back as the position it names. */
+function addressOf(id: string, log: string, entries: readonly GroupItem[]): { at: number | string } | undefined {
+  if (entries.some((held) => held.id === id)) return { at: id };
+
+  const prefix = `${log}:`;
+
+  if (!id.startsWith(prefix)) return undefined;
+
+  const position = Number(id.slice(prefix.length));
+
+  return Number.isInteger(position) && position >= 0 && position < entries.length ? { at: position } : undefined;
 }
 
 function entryOf(item: GroupItem): Record<string, Scalar> {
@@ -473,10 +578,19 @@ export function gestureFor(
   if (request.action === "go") {
     const gesture = emptyGesture();
     const target = plainText(request.target, scope);
+    const isNode = (document.nodes ?? []).some((node) => node.id === target);
 
-    // `to: back` is the one target that is not a node. The trail shortens, so
-    // `visits()` is not monotonic, which the reducer already knows.
-    gesture.moves.push(target === "back" ? { kind: "back" } : { kind: "enter", node: target });
+    // Two targets are not nodes. `to: back` shortens the trail, so `visits()` is
+    // not monotonic, which the reducer already knows. `to: start` is the
+    // schema's older sugar for `opens:` and means the reading's own opening, so
+    // it puts the trail back rather than entering a node that does not exist —
+    // which is what `labyrinth`'s "Return to the start" was doing, leaving a
+    // step in the trail that named nothing and printed its own interpolation.
+    // Both give way to a node of that name, because the author's names win.
+    if (target === "back" && !isNode) gesture.moves.push({ kind: "back" });
+    else if (target === START && !isNode) gesture.moves.push({ kind: "reset", trail: openingTrail(document) });
+    else gesture.moves.push({ kind: "enter", node: target });
+
     gesture.from = request.from ?? null;
     return gesture;
   }
@@ -518,7 +632,7 @@ export function gestureFor(
     const gesture = emptyGesture();
 
     for (const move of request.spelled) {
-      gesture.moves.push(...fromContractMove(move, document));
+      gesture.moves.push(...fromContractMove(move, document, scope));
     }
 
     gesture.from = request.from ?? null;
@@ -539,12 +653,31 @@ export function gestureFor(
 /* -------------------------------------------------------------------------- */
 
 /**
- * Every region id some affordance can reach, gathered once per document.
+ * Every region id that **starts closed**, gathered once per document.
  *
- * A region is revealed in place, so it starts closed — but a region nothing can
- * open would take its prose out of the reading and never put it back, and
- * decision 28 does not allow that. So a region no affordance names renders open,
- * and only the ones that can be opened start shut.
+ * A region is revealed in place, so revealing implies it was shut — but a region
+ * nothing can put back would take its prose out of the reading for good, and
+ * decision 28 does not allow that. "Something can open it" turned out to be too
+ * weak a test, because it counted every `show:` any move declares, and a move's
+ * `show:` can only ever open. Two kinds of reveal close a region, and they are
+ * the only two:
+ *
+ * - **`:go{show=}` in the prose**, which is a toggle: `gestureFor` hides what is
+ *   already shown, so the reader can always put back what a press took away.
+ * - **A move whose `show:` is written as a template** — `show:
+ *   "anchor-body-{item.id}"` — which names one region *per item* of a loop. A
+ *   region the author generated has nowhere to carry a state of its own, and the
+ *   apparatus that reveals its entries one at a time is written exactly this
+ *   way.
+ *
+ * A move whose `show:` names one region by its literal name is neither. It is a
+ * **return**: it puts the focus back on prose that is already on the page, and
+ * it can never shut it again. `recover-anchor` is what this is measured against.
+ * Its `re-anchor` declares `show: anchor-main`, and `anchor-main` is the
+ * document's main line — the sentence the whole piece hangs off. Counted as a
+ * reveal, the document opened on one clause of live prose with nothing to press,
+ * because the only control that invokes `re-anchor` is itself behind
+ * `when: "moved > 0"` and there is no move at the opening.
  */
 export function revealableRegions(document: NarrativeDocument): Set<string> {
   const reachable = new Set<string>();
@@ -569,13 +702,14 @@ export function revealableRegions(document: NarrativeDocument): Set<string> {
 
   for (const node of document.nodes ?? []) fromBlocks(node.body);
 
-  // A declared move may reveal a region no prose names, and `recover-anchor`
-  // does exactly that: `show: "anchor-mark-{away}"` names a region by a value.
+  // A declared move may close a region no prose names — but only when it names a
+  // family by template, because only a generated region has no other way to
+  // carry the state. The family is known only at render, so the literal prefix
+  // is what marks it; `matchesTemplate` below reads it back.
   for (const declared of Object.values(document.moves ?? {})) {
     const shown = (declared as Record<string, unknown>).show;
     if (typeof shown !== "string") continue;
-    // A template names a family of regions, and the family is only known at
-    // render; the literal prefix is enough to mark them revealable.
+    if (shown.indexOf("{") === -1) continue;
     reachable.add(shown);
   }
 
