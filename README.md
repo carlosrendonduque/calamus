@@ -157,8 +157,9 @@ beat. Use it when you want the reader to arrive at an ending, or when the amount
 visible at once is something you are deciding rather than something the window decides.
 
 Page breaks fall on paragraph boundaries; a paragraph is never split across pages. A
-paragraph taller than the available height gets a page to itself and that page scrolls.
-Pagination is recomputed on resize, and the current page index is clamped if the new
+A paragraph taller than a column is split across consecutive pages rather than
+overflowing one. CSS fragmentation honours `break-inside: avoid` until the box cannot fit
+anywhere, which is the point at which the alternative would be losing the text.
 pagination is shorter.
 
 ### `terminal`
@@ -184,7 +185,8 @@ For spatially composed text, where the spread rather than the paragraph is the u
 reader takes in a whole surface at once before moving on. This is the mode for work where
 placement on the page is part of the meaning.
 
-The column count is decided by a `window.matchMedia("(min-width: 768px)")` check at
+The column count comes from an `@container` rule on the reader's own box, so a narrow card
+lays out like a narrow card whatever the window is doing.
 measurement time, so a narrow viewport degrades to a single column. Fill order is
 column-major: a sheet's first column is filled, then the second, then a new sheet begins.
 
@@ -301,7 +303,7 @@ gap. It has no `ReaderTheme` key — set it through `style` or your own CSS:
 ```
 
 Class names are stable and follow a `calamus__*` / `calamus--*` convention (`calamus--book-frame`,
-`calamus__paragraph`, `calamus__editorial-column`, and so on), so you can also restyle by
+`calamus__paragraph`, `calamus__pager-flow`, and so on), so you can also restyle by
 selector. They are not currently documented as public API; prefer the tokens where a token
 exists.
 

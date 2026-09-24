@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import type { KeyboardEvent, TouchEvent } from "react";
+import type { KeyboardEvent } from "react";
 import type { ReaderContent, ReaderLabels, ReaderProps, ReaderTheme, ReaderTransition } from "./types";
 import { EditorialReader } from "./modes/EditorialReader";
 import { HypertextReader } from "./modes/HypertextReader";
-import { paginateParagraphs } from "./internal/pagination";
+import { renderSnapPoints, turnAnimationClassName, usePager } from "./internal/pagination";
 import { getReadingTimeText } from "./internal/readingTime";
 import { mergeLabels } from "./internal/labels";
-import { applyScrollAction, getPageAction, getScrollAction } from "./internal/keys";
+import { applyScrollAction, getScrollAction } from "./internal/keys";
 
 const THEME_TO_VAR: Record<keyof ReaderTheme, string> = {
   background: "--calamus-bg",
@@ -221,175 +221,31 @@ function BookMode({
   transition: ReaderTransition;
   labels: Required<ReaderLabels>;
 }) {
-  const bodyRef = useRef<HTMLElement | null>(null);
-  const measureRef = useRef<HTMLDivElement | null>(null);
-  const [pages, setPages] = useState<number[][]>([content.body.map((_, index) => index)]);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [navDirection, setNavDirection] = useState<"forward" | "backward">("forward");
-  const [hasTurned, setHasTurned] = useState(false);
+  const pager = usePager(transition, content.body);
+  const {
+    pagerRef,
+    flowRef,
+    totalPages,
+    currentPage,
+    direction,
+    hasTurned,
+    turnTick,
+    goPrevious,
+    goNext,
+    handleKeyDown
+  } = pager;
 
-  useEffect(() => {
-    const bodyElement = bodyRef.current;
-    const measureElement = measureRef.current;
-    if (!bodyElement || !measureElement) {
-      return;
-    }
-
-    const recalculatePagination = () => {
-      const width = bodyElement.clientWidth;
-      const availableHeight = bodyElement.clientHeight;
-
-      if (width <= 0 || availableHeight <= 0) {
-        return;
-      }
-
-      measureElement.style.width = `${width}px`;
-      measureElement.innerHTML = "";
-
-      const paragraphHeights = content.body.map((paragraph) => {
-        const node = document.createElement("p");
-        node.className = "calamus__paragraph";
-        node.textContent = paragraph;
-        measureElement.appendChild(node);
-
-        const computed = window.getComputedStyle(node);
-        const marginBottom = Number.parseFloat(computed.marginBottom) || 0;
-        return node.getBoundingClientRect().height + marginBottom;
-      });
-
-      const nextPages = paginateParagraphs(paragraphHeights, availableHeight);
-      setPages(nextPages);
-    };
-
-    recalculatePagination();
-
-    const observer = new ResizeObserver(() => {
-      recalculatePagination();
-    });
-
-    observer.observe(bodyElement);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [content.body, content.subtitle, content.title]);
-
-  useEffect(() => {
-    setCurrentPage((prev) => Math.min(prev, Math.max(0, pages.length - 1)));
-  }, [pages]);
-
-  const currentPageParagraphs = useMemo(() => {
-    const page = pages[currentPage] ?? [];
-    return page.map((index) => content.body[index]);
-  }, [content.body, currentPage, pages]);
-
-  const totalPages = pages.length;
   const canGoPrevious = currentPage > 0;
   const canGoNext = currentPage < totalPages - 1;
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const touchCurrentRef = useRef<{ x: number; y: number } | null>(null);
-
-  const goToPage = (nextPage: number) => {
-    const target = Math.min(Math.max(0, nextPage), Math.max(0, totalPages - 1));
-
-    if (target === currentPage) {
-      return;
-    }
-
-    setNavDirection(target > currentPage ? "forward" : "backward");
-    setCurrentPage(target);
-    // The live region stays empty until the reader turns a page, so mounting and
-    // re-pagination are silent and only real page turns are announced.
-    setHasTurned(true);
-  };
-
-  const goPrevious = () => {
-    goToPage(currentPage - 1);
-  };
-
-  const goNext = () => {
-    goToPage(currentPage + 1);
-  };
-
-  const handleBookKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    const action = getPageAction(event.key, event.shiftKey);
-    if (!action) {
-      return;
-    }
-
-    event.preventDefault();
-
-    if (action === "previous") {
-      goPrevious();
-      return;
-    }
-
-    if (action === "next") {
-      goNext();
-      return;
-    }
-
-    goToPage(action === "first" ? 0 : totalPages - 1);
-  };
-
-  const handleTouchStart = (event: TouchEvent<HTMLElement>) => {
-    const touch = event.touches[0];
-    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
-    touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
-  };
-
-  const handleTouchMove = (event: TouchEvent<HTMLElement>) => {
-    const touch = event.touches[0];
-    touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
-  };
-
-  const handleTouchEnd = () => {
-    const start = touchStartRef.current;
-    const current = touchCurrentRef.current;
-    touchStartRef.current = null;
-    touchCurrentRef.current = null;
-
-    if (!start || !current) {
-      return;
-    }
-
-    const deltaX = current.x - start.x;
-    const deltaY = current.y - start.y;
-    const horizontalDistance = Math.abs(deltaX);
-    const verticalDistance = Math.abs(deltaY);
-
-    if (horizontalDistance < 50 || horizontalDistance <= verticalDistance) {
-      return;
-    }
-
-    if (deltaX < 0) {
-      goNext();
-      return;
-    }
-
-    goPrevious();
-  };
-
-  const transitionClassName =
-    transition === "none"
-      ? "calamus__book-page-content--none"
-      : transition === "slide"
-        ? navDirection === "forward"
-          ? "calamus__book-page-content--slide-forward"
-          : "calamus__book-page-content--slide-backward"
-        : "calamus__book-page-content--fade";
-
   const pageStatus = labels.page(currentPage + 1, totalPages);
+  const snapPoints = useMemo(() => renderSnapPoints(totalPages), [totalPages]);
 
   return (
     <section
       className="calamus calamus--book-frame"
       aria-label={labels.readingMode("book")}
       tabIndex={0}
-      onKeyDown={handleBookKeyDown}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onKeyDown={handleKeyDown}
     >
       <div className="calamus__book-page">
         <header className="calamus__head calamus__head--book">
@@ -397,19 +253,31 @@ function BookMode({
           <h1 className="calamus__title">{content.title}</h1>
           {content.subtitle ? <p className="calamus__subtitle">{content.subtitle}</p> : null}
         </header>
-        <article
-          ref={bodyRef}
-          className="calamus__body calamus__book-body"
+        {/*
+          The page is a window one page wide over a flow that holds the whole
+          chapter. CSS columns decide where the breaks fall, the window scrolls
+          and snaps to them, and the only thing JavaScript measures is how many
+          windows wide the flow turned out to be.
+        */}
+        <div
+          ref={pagerRef}
+          className="calamus__body calamus__book-body calamus__pager"
           data-current-page={currentPage + 1}
           data-total-pages={totalPages}
+          data-nav-direction={direction}
         >
           <div
-            key={`${currentPage}-${transition}-${navDirection}`}
-            className={`calamus__book-page-content ${transitionClassName}`}
+            ref={flowRef}
+            className={`calamus__pager-flow calamus__book-page-content ${turnAnimationClassName(
+              transition,
+              turnTick,
+              "calamus__book-page-content"
+            )}`}
           >
-            {renderParagraphs(currentPageParagraphs)}
+            {renderParagraphs(content.body)}
           </div>
-        </article>
+          {snapPoints}
+        </div>
         <div className="calamus__book-nav" role="group" aria-label={labels.pageNavigation}>
           <button
             type="button"
@@ -434,7 +302,6 @@ function BookMode({
             →
           </button>
         </div>
-        <div ref={measureRef} className="calamus__book-measure" aria-hidden="true" />
       </div>
     </section>
   );

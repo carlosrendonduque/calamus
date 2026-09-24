@@ -79,6 +79,20 @@ Work preparing the library for its first public release.
   is now called only for keys the reader actually handles, so the rest pass through.
 - `paginateEditorialParagraphs` no longer throws on a `columnCount` below 1, fractional, `NaN`
   or `Infinity`; it floors to a minimum of one column.
+- **Pagination is CSS's now, and measures nothing.** `book` and `editorial` used to measure every
+  paragraph's height in the DOM and sum them to decide where to break. They now render the whole
+  document into a multi-column flow inside a scroll-snapping scrollport, and read the page count
+  off one number. `EditorialReader` went from 284 lines to 108, swipe became the platform's own
+  scroll rather than a hand-rolled threshold, and the library can paginate anything React can
+  render instead of only prose: a figure, a blockquote or a table now paginates without being
+  measured at all.
+
+  Two behaviour changes. A paragraph taller than a column is **split** across consecutive pages
+  rather than given its own page that scrolls internally, and in `editorial` it may run from a
+  sheet's first column into its second. And the previous paginator **saturated**: at 900px wide,
+  `editorial` reported five sheets at every height from 320px to 800px, because the guard that
+  kept one paragraph per page stopped responding and the text simply overflowed. Counts are now
+  monotone in the box at every width.
 - **The reader measures its own container, not the window.** `editorial` decided its column
   count with `window.matchMedia("(min-width: 768px)")`, so a 380px card on a 1400px desktop got
   two 136px columns with display type sized for the window. The count now comes from an

@@ -234,6 +234,89 @@
   color: var(--calamus-terminal-muted);
 }
 
+/*
+ * The pager: a window exactly one page wide over a multi-column flow that holds
+ * the whole document (decision 24).
+ *
+ * The height comes from the frame above it and never from what is inside, which
+ * is decision 19 restated: a box that took its height from the pagination it had
+ * just produced is what walked Sterne's chapter down to ten pages of one
+ * paragraph. `flex: auto; min-height: 0` inside a surface with an outright
+ * height is that rule in its executable form, and the `ResizeObserver` watches
+ * this element precisely because nothing it does can change this element's size.
+ *
+ * The scrollbar is taken out rather than hidden with `overflow: hidden`, because
+ * the container still has to be scrollable: the snap points below are what a
+ * swipe lands on, and a swipe is one of the two ways a page is turned.
+ */
+.calamus__pager {
+  position: relative;
+  flex: auto;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.calamus__pager::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * The flow. One page is one scrollport wide, and that is arithmetic rather than
+ * luck: with half a column gap of padding at each end the content box is
+ * `width - gap`, so `n` columns have a pitch of `width / n` and `n` of them come
+ * to exactly `width`. Take the padding away and the pitch becomes `width + gap`,
+ * a page drifts one gap further right than the one before it, and the count and
+ * the scroll positions stop agreeing with each other.
+ *
+ * `box-sizing` is declared and not inherited: the arithmetic is wrong by a whole
+ * gap under `content-box`, and a host that resets the property is not a host
+ * error.
+ *
+ * `column-fill: auto` fills each column before starting the next, the way the
+ * measured paginator filled each page before starting the next. The default,
+ * `balance`, would even the columns out and a three-paragraph sheet would read
+ * as three short columns instead of one full one.
+ */
+.calamus__pager-flow {
+  height: 100%;
+  box-sizing: border-box;
+  padding-inline: calc(var(--calamus-column-gap) / 2);
+  column-count: var(--calamus-pager-columns, 1);
+  column-gap: var(--calamus-column-gap);
+  column-fill: auto;
+}
+
+/*
+ * A block is never cut in half by a page break. `break-inside: avoid` is a
+ * request and not a promise: CSS fragmentation drops it when the block is taller
+ * than the column it would have to fit in, because the alternative is losing the
+ * text. That case is the one the measured paginator guarded by hand, and it
+ * guarded it by letting the oversized paragraph overflow its page instead. This
+ * lets it continue on the next page, which at least stays readable.
+ */
+.calamus__pager-flow > * {
+  break-inside: avoid;
+}
+
+/*
+ * The snap points. A column is not an element and cannot carry
+ * `scroll-snap-align`, so each page gets a marker that can. They are drawn by
+ * nothing and measured by nothing: the page count is read off the flow, which
+ * does not contain them.
+ */
+.calamus__page-snap {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  height: 1px;
+  pointer-events: none;
+  scroll-snap-align: start;
+}
+
 .calamus--editorial {
   /* The single source of truth for the editorial column count. The grid below
      uses it, and `EditorialReader` reads this same property back to paginate, so
@@ -263,20 +346,18 @@
 }
 
 .calamus__editorial-article {
-  flex: auto;
-  min-height: 0;
   margin: 0 auto;
   max-width: 70ch;
-  column-gap: var(--calamus-column-gap);
-  max-height: var(--calamus-max-height, min(78vh, 860px));
-  overflow: auto;
+}
+
+/* The one place the editorial column count is consumed. `@container` below is
+   the one place it is written. */
+.calamus--editorial .calamus__pager-flow {
+  --calamus-pager-columns: var(--calamus-editorial-columns);
 }
 
 .calamus__editorial-sheet-content {
-  display: grid;
-  grid-template-columns: repeat(var(--calamus-editorial-columns), 1fr);
-  gap: var(--calamus-column-gap);
-  will-change: transform, opacity;
+  will-change: opacity;
 }
 
 /* The width of the reader, not the width of the window: a 380px card on a wide
@@ -287,23 +368,27 @@
   }
 }
 
-.calamus__editorial-sheet-content--fade {
-  animation: calamus-editorial-fade-in 180ms ease-out;
+/*
+ * `slide` is the scroll itself now, so it declares no animation: the sheet
+ * travels under the window in the direction it was asked to. `fade` jumps and
+ * fades, which is what the old sheet did when its children were swapped, and the
+ * two identical animations exist so that the turn restarts the animation without
+ * remounting the flow — remounting it would throw away the scroll position and
+ * the pagination with it.
+ */
+.calamus__editorial-sheet-content--fade-a {
+  animation: calamus-editorial-fade-a 180ms ease-out;
 }
 
-.calamus__editorial-sheet-content--slide-forward {
-  animation: calamus-editorial-slide-forward 210ms ease-out;
-}
-
-.calamus__editorial-sheet-content--slide-backward {
-  animation: calamus-editorial-slide-backward 210ms ease-out;
+.calamus__editorial-sheet-content--fade-b {
+  animation: calamus-editorial-fade-b 180ms ease-out;
 }
 
 .calamus__editorial-sheet-content--none {
   animation: none;
 }
 
-@keyframes calamus-editorial-fade-in {
+@keyframes calamus-editorial-fade-a {
   from {
     opacity: 0.15;
   }
@@ -313,45 +398,18 @@
   }
 }
 
-@keyframes calamus-editorial-slide-forward {
+@keyframes calamus-editorial-fade-b {
   from {
-    opacity: 0.3;
-    transform: translateX(14px);
+    opacity: 0.15;
   }
 
   to {
     opacity: 1;
-    transform: translateX(0);
   }
-}
-
-@keyframes calamus-editorial-slide-backward {
-  from {
-    opacity: 0.3;
-    transform: translateX(-14px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.calamus__editorial-column {
-  min-width: 0;
 }
 
 .calamus--editorial .calamus__paragraph {
-  break-inside: avoid;
   margin-bottom: 1.15rem;
-}
-
-.calamus__editorial-measure {
-  position: absolute;
-  left: -99999px;
-  top: 0;
-  visibility: hidden;
-  pointer-events: none;
 }
 
 .calamus__editorial-nav {
@@ -456,32 +514,23 @@
   max-height: var(--calamus-max-height, min(78vh, 860px));
 }
 
-.calamus__book-body {
-  flex: 1;
-  overflow: auto;
-}
-
 .calamus__book-page-content {
-  will-change: transform, opacity;
+  will-change: opacity;
 }
 
-.calamus__book-page-content--fade {
-  animation: calamus-book-fade-in 180ms ease-out;
+.calamus__book-page-content--fade-a {
+  animation: calamus-book-fade-a 180ms ease-out;
 }
 
-.calamus__book-page-content--slide-forward {
-  animation: calamus-book-slide-forward 210ms ease-out;
-}
-
-.calamus__book-page-content--slide-backward {
-  animation: calamus-book-slide-backward 210ms ease-out;
+.calamus__book-page-content--fade-b {
+  animation: calamus-book-fade-b 180ms ease-out;
 }
 
 .calamus__book-page-content--none {
   animation: none;
 }
 
-@keyframes calamus-book-fade-in {
+@keyframes calamus-book-fade-a {
   from {
     opacity: 0.15;
   }
@@ -491,27 +540,13 @@
   }
 }
 
-@keyframes calamus-book-slide-forward {
+@keyframes calamus-book-fade-b {
   from {
-    opacity: 0.3;
-    transform: translateX(14px);
+    opacity: 0.15;
   }
 
   to {
     opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes calamus-book-slide-backward {
-  from {
-    opacity: 0.3;
-    transform: translateX(-14px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
   }
 }
 
@@ -555,29 +590,26 @@
   color: var(--calamus-muted);
 }
 
-.calamus__book-measure {
-  position: absolute;
-  left: -99999px;
-  top: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
 /*
  * Reduced motion: the page and sheet still change, they just stop moving.
  * Keyboard scrolling drops its smooth behaviour in `src/internal/keys.ts`.
  */
 @media (prefers-reduced-motion: reduce) {
   .calamus__book-page-content,
-  .calamus__book-page-content--fade,
-  .calamus__book-page-content--slide-forward,
-  .calamus__book-page-content--slide-backward,
+  .calamus__book-page-content--fade-a,
+  .calamus__book-page-content--fade-b,
   .calamus__editorial-sheet-content,
-  .calamus__editorial-sheet-content--fade,
-  .calamus__editorial-sheet-content--slide-forward,
-  .calamus__editorial-sheet-content--slide-backward {
+  .calamus__editorial-sheet-content--fade-a,
+  .calamus__editorial-sheet-content--fade-b {
     animation: none;
     will-change: auto;
+  }
+
+  /* A `slide` turn is an animated scroll, so reduced motion has to reach the
+     scroller too. `usePager` drops the smooth behaviour in JavaScript for the
+     same reason `keys.ts` does; this covers a scroll the platform starts. */
+  .calamus__pager {
+    scroll-behavior: auto;
   }
 
   .calamus__scroll-progress-fill,

@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent, TouchEvent } from "react";
+import { useMemo } from "react";
 import type { ReaderContent, ReaderLabels, ReaderTransition } from "../types";
-import { paginateEditorialParagraphs, type EditorialSheet } from "../internal/pagination";
-import { getPageAction } from "../internal/keys";
+import { renderSnapPoints, turnAnimationClassName, usePager } from "../internal/pagination";
 
 type EditorialReaderProps = {
   content: ReaderContent;
@@ -11,220 +9,46 @@ type EditorialReaderProps = {
   labels: Required<ReaderLabels>;
 };
 
-const COLUMN_COUNT_PROPERTY = "--calamus-editorial-columns";
-
 /**
- * How many columns the sheet actually has, asked of CSS rather than decided here.
- * The `@container` rule in `styles.css` sets this custom property and the same
- * property drives `grid-template-columns`, so the breakpoint is written once and
- * the paginator cannot disagree with the grid it is filling.
+ * `editorial` is `book` with more than one column on the sheet, and that is now
+ * the whole difference. The count lives in `--calamus-editorial-columns`, which
+ * an `@container` rule sets and `column-count` consumes; nothing in JavaScript
+ * reads it any more, because nothing in JavaScript needs it. Decision 29 fixed a
+ * paginator that disagreed with the grid it was filling by making the stylesheet
+ * the single source of truth for the count; this removes the second reader of
+ * that truth altogether, so there is no longer anything to disagree.
  *
- * Do not put `window.matchMedia("(min-width: 768px)")` back: it measures the
- * window, not this box, so a 380px card on a wide desktop was paginated into two
- * columns the grid never drew — and it wrote the breakpoint down a second time.
- * A `ResizeObserver` comparing the measured width against a JavaScript copy of
- * `768` would fix the first half and keep the second.
+ * Do not put a column count back into this file. The sheet count comes out of
+ * `scrollWidth / clientWidth`, which already has the columns folded into it: a
+ * sheet is a scrollport wide whether it holds one column or four.
  */
-function readColumnCount(element: Element): number {
-  const declared = Number.parseInt(
-    window.getComputedStyle(element).getPropertyValue(COLUMN_COUNT_PROPERTY),
-    10
-  );
-
-  // One column is what the stylesheet declares before any query matches, so it is
-  // also the right answer when the host forgot to load the stylesheet at all.
-  return Number.isFinite(declared) && declared > 0 ? declared : 1;
-}
-
 export function EditorialReader({ content, readingTimeText, transition, labels }: EditorialReaderProps) {
   const sourceName = content.subtitle ? `viewer --editorial ${content.subtitle}` : "viewer --editorial";
-  const surfaceRef = useRef<HTMLElement | null>(null);
-  const bodyRef = useRef<HTMLElement | null>(null);
-  const measureRef = useRef<HTMLDivElement | null>(null);
-  const [sheets, setSheets] = useState<EditorialSheet[]>([[content.body.map((_, index) => index)]]);
-  const [currentSheet, setCurrentSheet] = useState(0);
-  const [columnCount, setColumnCount] = useState(1);
-  const [navDirection, setNavDirection] = useState<"forward" | "backward">("forward");
-  const [hasTurned, setHasTurned] = useState(false);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const touchCurrentRef = useRef<{ x: number; y: number } | null>(null);
+  const pager = usePager(transition, content.body);
+  const {
+    pagerRef,
+    flowRef,
+    totalPages,
+    currentPage,
+    direction,
+    hasTurned,
+    turnTick,
+    goPrevious,
+    goNext,
+    handleKeyDown
+  } = pager;
 
-  useEffect(() => {
-    const bodyElement = bodyRef.current;
-    const measureElement = measureRef.current;
-    if (!bodyElement || !measureElement) {
-      return;
-    }
-
-    const recalculateSheets = () => {
-      const width = bodyElement.clientWidth;
-      const availableHeight = bodyElement.clientHeight;
-
-      if (width <= 0 || availableHeight <= 0) {
-        return;
-      }
-
-      const nextColumnCount = readColumnCount(bodyElement);
-      setColumnCount(nextColumnCount);
-
-      const columnGap = parseFloat(getComputedStyle(bodyElement).columnGap || "0") || 0;
-      const measuredColumnWidth = (width - columnGap * (nextColumnCount - 1)) / nextColumnCount;
-
-      measureElement.style.width = `${Math.max(0, measuredColumnWidth)}px`;
-      measureElement.innerHTML = "";
-
-      const paragraphHeights = content.body.map((paragraph) => {
-        const node = document.createElement("p");
-        node.className = "calamus__paragraph";
-        node.textContent = paragraph;
-        measureElement.appendChild(node);
-
-        const computed = window.getComputedStyle(node);
-        const marginBottom = Number.parseFloat(computed.marginBottom) || 0;
-        return node.getBoundingClientRect().height + marginBottom;
-      });
-
-      setSheets(paginateEditorialParagraphs(paragraphHeights, availableHeight, nextColumnCount));
-    };
-
-    recalculateSheets();
-
-    const observer = new ResizeObserver(() => {
-      recalculateSheets();
-    });
-
-    observer.observe(bodyElement);
-
-    // The article is what the paginator measures, but `max-width: 70ch` pins its
-    // width while the reader keeps growing, so on its own it can miss the resize
-    // that crosses the column breakpoint. The surface has the width of the query
-    // container and a height that never comes from its own pagination, so
-    // watching it adds the missing signal and no feedback loop.
-    const surfaceElement = surfaceRef.current;
-    if (surfaceElement) {
-      observer.observe(surfaceElement);
-    }
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [content.body, content.subtitle, content.title]);
-
-  useEffect(() => {
-    setCurrentSheet((prev) => Math.min(prev, Math.max(0, sheets.length - 1)));
-  }, [sheets]);
-
-  const currentColumns = useMemo(() => {
-    const sheet = sheets[currentSheet] ?? Array.from({ length: columnCount }, () => []);
-    return sheet.map((column) => column.map((index) => content.body[index]));
-  }, [columnCount, content.body, currentSheet, sheets]);
-
-  const totalSheets = sheets.length;
-  const canGoPrevious = currentSheet > 0;
-  const canGoNext = currentSheet < totalSheets - 1;
-
-  const goToSheet = (nextSheet: number) => {
-    const target = Math.min(Math.max(0, nextSheet), Math.max(0, totalSheets - 1));
-
-    if (target === currentSheet) {
-      return;
-    }
-
-    setNavDirection(target > currentSheet ? "forward" : "backward");
-    setCurrentSheet(target);
-    // The live region stays empty until the reader turns a sheet, so mounting and
-    // re-pagination are silent and only real sheet turns are announced.
-    setHasTurned(true);
-  };
-
-  const goPrevious = () => {
-    goToSheet(currentSheet - 1);
-  };
-
-  const goNext = () => {
-    goToSheet(currentSheet + 1);
-  };
-
-  const handleEditorialKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    const action = getPageAction(event.key, event.shiftKey);
-    if (!action) {
-      return;
-    }
-
-    event.preventDefault();
-
-    if (action === "previous") {
-      goPrevious();
-      return;
-    }
-
-    if (action === "next") {
-      goNext();
-      return;
-    }
-
-    goToSheet(action === "first" ? 0 : totalSheets - 1);
-  };
-
-  const handleTouchStart = (event: TouchEvent<HTMLElement>) => {
-    const touch = event.touches[0];
-    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
-    touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
-  };
-
-  const handleTouchMove = (event: TouchEvent<HTMLElement>) => {
-    const touch = event.touches[0];
-    touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
-  };
-
-  const handleTouchEnd = () => {
-    const start = touchStartRef.current;
-    const current = touchCurrentRef.current;
-    touchStartRef.current = null;
-    touchCurrentRef.current = null;
-
-    if (!start || !current) {
-      return;
-    }
-
-    const deltaX = current.x - start.x;
-    const deltaY = current.y - start.y;
-    const horizontalDistance = Math.abs(deltaX);
-    const verticalDistance = Math.abs(deltaY);
-
-    if (horizontalDistance < 50 || horizontalDistance <= verticalDistance) {
-      return;
-    }
-
-    if (deltaX < 0) {
-      goNext();
-      return;
-    }
-
-    goPrevious();
-  };
-
-  const transitionClassName =
-    transition === "none"
-      ? "calamus__editorial-sheet-content--none"
-      : transition === "slide"
-        ? navDirection === "forward"
-          ? "calamus__editorial-sheet-content--slide-forward"
-          : "calamus__editorial-sheet-content--slide-backward"
-        : "calamus__editorial-sheet-content--fade";
-
-  const sheetStatus = labels.sheet(currentSheet + 1, totalSheets);
+  const canGoPrevious = currentPage > 0;
+  const canGoNext = currentPage < totalPages - 1;
+  const sheetStatus = labels.sheet(currentPage + 1, totalPages);
+  const snapPoints = useMemo(() => renderSnapPoints(totalPages), [totalPages]);
 
   return (
     <section
-      ref={surfaceRef}
       className="calamus calamus--editorial"
       aria-label={labels.readingMode("editorial")}
       tabIndex={0}
-      onKeyDown={handleEditorialKeyDown}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onKeyDown={handleKeyDown}
     >
       <header className="calamus__head">
         <p className="calamus__mode-label">{sourceName}</p>
@@ -232,28 +56,29 @@ export function EditorialReader({ content, readingTimeText, transition, labels }
         <p className="calamus__reading-time">{readingTimeText}</p>
       </header>
 
-      <article
-        ref={bodyRef}
-        className="calamus__editorial-article calamus__editorial-sheet"
-        data-current-sheet={currentSheet + 1}
-        data-total-sheets={totalSheets}
+      <div
+        ref={pagerRef}
+        className="calamus__editorial-article calamus__editorial-sheet calamus__pager"
+        data-current-sheet={currentPage + 1}
+        data-total-sheets={totalPages}
+        data-nav-direction={direction}
       >
         <div
-          key={`${currentSheet}-${transition}-${navDirection}`}
-          className={`calamus__editorial-sheet-content ${transitionClassName}`}
-          data-nav-direction={navDirection}
+          ref={flowRef}
+          className={`calamus__pager-flow calamus__editorial-sheet-content ${turnAnimationClassName(
+            transition,
+            turnTick,
+            "calamus__editorial-sheet-content"
+          )}`}
         >
-          {currentColumns.map((columnParagraphs, columnIndex) => (
-            <div key={columnIndex} className="calamus__editorial-column">
-              {columnParagraphs.map((paragraph, paragraphIndex) => (
-                <p key={`${columnIndex}-${paragraphIndex}`} className="calamus__paragraph">
-                  {paragraph}
-                </p>
-              ))}
-            </div>
+          {content.body.map((paragraph, index) => (
+            <p key={index} className="calamus__paragraph">
+              {paragraph}
+            </p>
           ))}
         </div>
-      </article>
+        {snapPoints}
+      </div>
       <div className="calamus__editorial-nav" role="group" aria-label={labels.sheetNavigation}>
         <button
           type="button"
@@ -278,7 +103,6 @@ export function EditorialReader({ content, readingTimeText, transition, labels }
           →
         </button>
       </div>
-      <div ref={measureRef} className="calamus__editorial-measure" aria-hidden="true" />
     </section>
   );
 }

@@ -150,7 +150,7 @@ export const INITIAL_STATE: ExplorerState = {
   customSubtitle: "notes.txt",
   customBody: [
     "Paste prose here. A blank line starts a new paragraph, and each paragraph becomes one entry of content.body.",
-    "The reader never splits a paragraph across a page, so the shape of your text decides where the breaks fall."
+    "A paragraph is kept whole while it fits a column, and split across pages when it does not, so the shape of your text decides where the breaks fall."
   ].join("\n\n"),
   mode: openingMode(),
   transition: "fade",
