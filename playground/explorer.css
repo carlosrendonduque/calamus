@@ -1,5 +1,21 @@
 /* Controls panel */
 
+/* The explorer's own chrome renders outside `.calamus-root`, where the library's
+   tokens are declared and nowhere else. A `var(--calamus-*)` with no fallback is
+   invalid there at computed-value time and silently inherits the page font --
+   which had the code panel, a <pre> whose whole job is showing JSX, set in a
+   sans-serif. These mirror the library's defaults so the chrome has them too. */
+.explorer {
+  --calamus-bg: #f4f2ec;
+  --calamus-panel: #ede9df;
+  --calamus-fg: #26241f;
+  --calamus-muted: #696353;
+  --calamus-accent: #6f7559;
+  --calamus-border: #c8c1af;
+  --calamus-serif-font: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+  --calamus-mono-font: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
 .explorer__fieldset {
   border: 0;
   border-top: 1px solid var(--pg-border);
