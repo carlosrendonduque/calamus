@@ -103,12 +103,41 @@ de notas **saca** la última en cada regreso.
 `keeps: unique` es lo que sostiene la decisión 26: sin él, «2 de 3 hojas» exige restar duplicados,
 que es aritmética.
 
-**Imprimir un grupo** — lo que faltaba y por lo que la v1 sacó 0:
+### Imprimir un grupo
+
+La forma en línea sirve para una sola línea por ítem:
 
 ```markdown
 :each{of=claims where holds}
 La declaración dice: {item.text}
 ```
+
+**Y la forma de isla para todo lo demás**, que en el corpus es 11 de 15 casos. La forma en línea
+solo puede dar un párrafo y no tiene rama vacía, así que no alcanza a la mayoría de los bucles
+reales — y `order:` y `empty:` existían en el contrato sin que nada pudiera escribirlos:
+
+````markdown
+```calamus
+each: exits
+order: unstable        # nombre del registro; el orden de las opciones es estructura
+empty: |
+  Ya no queda nada que tomar.
+```
+
+Sale por {item.label}, y no donde la viste la última vez.
+
+Sigue pareciendo un camino.
+
+```calamus
+end
+```
+````
+
+`empty:` es **prosa de cara al lector**, no un estado vacío: un grupo agotado suele ser el momento
+en que la pieza dice algo.
+
+La regla que las separa es la misma que gobierna los nodos: **una isla es una cabecera, y lo que
+sigue le pertenece hasta su cierre.**
 
 ### Contradicción, escrita bien
 
@@ -136,7 +165,7 @@ Sustituye al `:if` de la v1, que **era agramatical en su propia gramática**: un
 usada como modificador de bloque parsea como párrafo. Y metía la expresión en la ranura de hijos,
 que es Markdown en línea, donde un `*`, un `_` o un `[` se destruyen. En un atributo sobreviven.
 
-Lleva `when`, `weight`, `id`, `voice`, `lang`, `mark`, `live`. **Lo decide `lang`**: dos de los tres
+Lleva `when`, `id`, `voice`, `lang`, `mark`, `role` y `live`. `role` es un papel que **nombra el autor** — `heading`, `caption`, `time` —, no un número; y `live` lleva la cortesía que el autor pidió. **Lo decide `lang`**: dos de los tres
 corpus de la demo son franceses y van en original.
 
 ## 6. Marcas e interior de frase
@@ -173,6 +202,16 @@ Siguen las **dos puertas**: `requires` en el nodo, `when` en la salida.
 **`once:` no existe.** Desaparecer ya es el `when:` de la salida, y quedarse inerte ya es una marca.
 La pregunta estaba mal planteada.
 
+**Una región se abre como un nodo**, con su propia isla, y se revela en sitio en vez de sustituir:
+
+````markdown
+```calamus
+region: nota-3
+```
+
+El texto que se despliega al tocarla.
+````
+
 **Dónde empieza:** `opens:`. El nodo de arranque **está** en el rastro, y un documento puede
 declarar un rastro inicial no vacío — dos ejemplos abren a mitad de lectura a propósito.
 
@@ -186,6 +225,35 @@ El pasillo :go{show=note-3 focus=true} sigue hasta el fondo.
 
 `:go{to=}` navega, `:go{show=}` revela, `:do{move=}` escribe. Sin etiqueta de cierre: la decisión 27
 midió directivas en línea con hijos entre corchetes, no pares de apertura y cierre.
+
+## 8bis. Los controles del lector
+
+El hueco más grande que encontró la migración: **8 de 19 documentos terminan en un botón y 10
+etiquetan un control**, y el formato no tenía sitio para ninguno de los dos. No es un caso borde —
+es cómo el lector toca la obra.
+
+Un control es una variable que el lector puede mover, y su etiqueta **es prosa que alguien lee**:
+
+```yaml
+variables:
+  erosion:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    control: range
+    label: Cuánto se ha borrado
+    unit: "%"
+```
+
+Y una afordancia puede ocupar un bloque, no solo vivir dentro de una frase:
+
+```markdown
+:do{move=forget label="Olvídame"}
+```
+
+`label` es prosa en los dos casos, así que pasa por la frase con casos cuando depende del estado —
+que es como un botón dice «Abrir la siguiente hoja» y luego «No queda ninguna».
 
 ## 9. Ranuras
 

@@ -1,15 +1,15 @@
 ---
 title: Platform six
-calamus: 1
 lang: en
-flow: replace
 # `opens:` is both the start node and the initial trail. The start node is in the
 # trail, so visits(platform) is 1 before the reader has touched anything, which
 # is what the component does.
 opens:
   trail: [platform]
-logs:
-  trail: { keeps: duplicates, removes: last }
+groups:
+  # A log is a group that grows: the trail keeps repeats, and only the last step
+  # can be taken back.
+  trail: { fields: [], keeps: duplicates, removes: last }
 names:
   stands: visits(here)
 phrases:
@@ -20,7 +20,7 @@ phrases:
     on: stands
     cases:
       - { is: 1, say: "" }
-      - { say: You have stood here {stands} times. }
+      - { say: "You have stood here {stands} times." }
   # `seen` needs the exit it is printed on. A phrase cannot take one, so this
   # reads the call site.
   seen:
@@ -35,7 +35,7 @@ each: trail
 label: Your route so far
 ```
 
-{entry.title}
+{item.title}
 
 ```calamus
 end

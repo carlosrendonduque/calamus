@@ -1,6 +1,5 @@
 ---
 title: Two accounts of one night
-calamus: 1
 lang: en
 groups:
   points:
@@ -65,7 +64,7 @@ heading: Transcript of the call
 ```
 
 :with{mark=disputed}
-:mark[{item.subject}]{as=subject} {item.transcript}
+:mark[{item.subject}]{kind=subject} {item.transcript}
 
 ```calamus
 end
@@ -79,7 +78,7 @@ heading: "Field log, same night"
 ```
 
 :with{mark=disputed}
-:mark[{item.subject}]{as=subject} {item.log}
+:mark[{item.subject}]{kind=subject} {item.log}
 
 ```calamus
 end

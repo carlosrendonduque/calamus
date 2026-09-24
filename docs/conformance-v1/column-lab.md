@@ -1,6 +1,5 @@
 ---
 title: The Life and Opinions of Tristram Shandy, Gentleman
-calamus: 1
 lang: en
 variables:
   cols:

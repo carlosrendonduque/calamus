@@ -1,10 +1,13 @@
 ---
 title: A line for your next visit
-calamus: 1
 lang: en
 variables:
   note:
     type: string
+    # What the box holds when nothing has ever been written in it. The contract
+    # asks every variable for one, and the seeded first line is a different
+    # thing, so it goes under `opens:`.
+    default: ""
     persist: true
     control: text
     control-at: panel
@@ -12,8 +15,9 @@ variables:
     rows: 3
 # Seeded on a first visit, because a blank box cannot show that anything is kept.
 opens:
-  note: >-
-    Left on an earlier visit: the stairs are counted differently going down.
+  variables:
+    note: >-
+      Left on an earlier visit: the stairs are counted differently going down.
 phrases:
   kept:
     on: note

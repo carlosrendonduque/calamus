@@ -1,6 +1,5 @@
 ---
 title: The bridge was passed as sound
-calamus: 1
 lang: en
 groups:
   anchors:
@@ -8,10 +7,10 @@ groups:
     items:
       - { id: note, label: note 4.2, text: "The pier was gauged twice that morning, and the figures differ." }
       - { id: appendix, label: appendix C, text: The figure that was filed is in a hand nobody will own. }
+  # A log is a group that grows.
+  jumps: { fields: [way, anchor], keeps: duplicates, removes: none }
 variables:
   away: { type: string, default: "" }
-logs:
-  jumps: { fields: [way, anchor], keeps: duplicates, removes: none }
 names:
   moved: count(jumps)
   gone: first(anchors where id == away)
@@ -19,16 +18,19 @@ moves:
   # One gesture, three effects: the focus moves to the apparatus, a variable
   # records that the reader is off the main line, and the log grows.
   down-to:
+    writes: [away, jumps]
     show: "anchor-body-{item.id}"
     focus: true
     sets: { away: "{item.id}" }
     logs: { jumps: { way: down, anchor: "{item.id}" } }
   back-up:
+    writes: [away, jumps]
     show: "anchor-mark-{away}"
     focus: true
     sets: { away: "" }
     logs: { jumps: { way: up, anchor: "{away}" } }
   re-anchor:
+    writes: [away, jumps]
     show: anchor-main
     focus: true
     sets: { away: "" }
@@ -36,10 +38,10 @@ moves:
 phrases:
   # The log prints a sentence per entry, so the entry is the phrase's subject.
   jump-line:
-    of: entry
+    of: item
     cases:
-      - { when: "entry.way == down", say: down to {entry.anchor.label} }
-      - { say: up from {entry.anchor.label} }
+      - { when: "item.way == down", say: "down to {item.anchor.label}" }
+      - { say: "up from {item.anchor.label}" }
   where-you-are:
     cases:
       - { when: "away", say: "You are in {gone.label}, off the main line." }
@@ -53,9 +55,9 @@ id: anchor-main
 ```
 
 The bridge was passed as sound on the fourteenth
-:go[note 4.2]{move=down-to item=note id=anchor-mark-note} on a sheet the
+:do[note 4.2]{move=down-to item=note id=anchor-mark-note} on a sheet the
 engineer of record never read
-:go[appendix C]{move=down-to item=appendix id=anchor-mark-appendix} and it
+:do[appendix C]{move=down-to item=appendix id=anchor-mark-appendix} and it
 has carried the mail every day since.
 
 ```calamus
@@ -69,7 +71,7 @@ id: anchor-body-{item.id}
 label: "{item.label}"
 ```
 
-:with{weight=heading}
+:with{role=heading}
 {item.label}
 
 {item.text}

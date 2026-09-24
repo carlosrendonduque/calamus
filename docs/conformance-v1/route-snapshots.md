@@ -1,6 +1,5 @@
 ---
 title: Walk the town twice
-calamus: 1
 lang: en
 # Not a document. Four things are missing and none of them is a missing key:
 # saved trails as values, a selection of two of them, a positional comparison of
@@ -12,11 +11,15 @@ groups:
   nodes:
     fields: [name]
     items:
-      - { name: the quay }
-      - { name: the market }
-      - { name: the light }
-logs:
+      - { id: quay, name: the quay }
+      - { id: market, name: the market }
+      - { id: light, name: the light }
+  # A log is a group that grows.
   route: { fields: [node], keeps: duplicates, removes: none }
+moves:
+  go-to:
+    writes: [route]
+    logs: { route: { node: "{item.name}" } }
 names:
   walked: count(route)
   kept: count(saved)
@@ -30,15 +33,8 @@ phrases:
 Walk the town, keep the walk, then walk it another way and hold the two up
 against each other.
 
-```calamus
-each: nodes
-```
-
-:log[Go to {item.name}]{add=route node="{item.name}"}
-
-```calamus
-end
-```
+:each{of=nodes}
+:do[Go to {item.name}]{move=go-to}
 
 ```calamus
 each: route
@@ -47,7 +43,7 @@ live: polite
 current: last(route)
 ```
 
-{entry.node}
+{item.node}
 
 ```calamus
 end

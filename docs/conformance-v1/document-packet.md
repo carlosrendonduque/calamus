@@ -1,6 +1,5 @@
 ---
 title: Three sheets in one envelope
-calamus: 1
 lang: en
 groups:
   exhibits:
@@ -21,14 +20,14 @@ groups:
         body: >-
           — We took it down in April. — Which April? — That is the question the
           file keeps asking.
-variables:
-  open: { type: string, default: A }
-logs:
   # `unique:` is the whole point of this log: "2 of 3 sheets opened" is wrong the
   # moment the same sheet counts twice, and a log keeps duplicates by contract.
   read: { fields: [sheet], keeps: unique, removes: none }
+variables:
+  open: { type: string, default: A }
 opens:
-  read: [{ sheet: A }]
+  logs:
+    read: [{ sheet: A }]
 marks:
   opened: { as: note }
 names:
@@ -38,21 +37,24 @@ names:
   showing: first(exhibits where id == open)
 moves:
   turn-to:
+    writes: [open, read]
     sets: { open: "{item.id}" }
     logs: { read: { sheet: "{item.id}" } }
+    to: toggle
   turn-to-next:
+    writes: [open, read]
     sets: { open: "{next-unread.id}" }
     logs: { read: { sheet: "{next-unread.id}" } }
 phrases:
   sheet-count:
     on: seen
     cases:
-      - { is: 1, say: 1 of {total} sheets opened. }
+      - { is: 1, say: "1 of {total} sheets opened." }
       - { say: "{seen} of {total} sheets opened." }
   state:
     cases:
       - { when: "open", say: "{showing.title} is open. {sheet-count}" }
-      - { say: The envelope is shut. {sheet-count} }
+      - { say: "The envelope is shut. {sheet-count}" }
 ---
 
 Three sheets came in one envelope, with the first already on top. They do not
@@ -63,7 +65,7 @@ each: exhibits
 reveal: one
 ```
 
-:set[{item.title}]{move=turn-to to=toggle}:mark[opened]{as=opened when="in(read, item)"}
+:do[{item.title}]{move=turn-to}:mark[opened]{kind=opened when="in(read, item)"}
 
 :with{when="open == item.id"}
 {item.body}

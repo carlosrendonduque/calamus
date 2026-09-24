@@ -1,6 +1,5 @@
 ---
 title: How reliable is the account
-calamus: 1
 lang: en
 groups:
   # `floor` is the reliability at which a clause may be stated plainly; below
@@ -9,16 +8,19 @@ groups:
   account:
     fields: [plain, hedged, floor, keep]
     items:
-      - plain: The door was locked from the inside.
+      - id: door
+        plain: The door was locked from the inside.
         hedged: The door is described as having been locked from the inside.
         floor: 70
         keep: 0
-      - plain: The clerk turned the visitor away at eleven.
+      - id: clerk
+        plain: The clerk turned the visitor away at eleven.
         hedged: >-
           Someone, probably the clerk, turned a visitor away late in the evening.
         floor: 45
         keep: 15
-      - plain: The register gives the visitor's name in full.
+      - id: register
+        plain: The register gives the visitor's name in full.
         hedged: "The register gives a name, in a hand that is not the clerk's."
         floor: 80
         keep: 35

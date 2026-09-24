@@ -1,6 +1,5 @@
 ---
 title: Hold them together
-calamus: 1
 lang: en
 groups:
   claims:
@@ -16,29 +15,33 @@ groups:
       - { id: s3, text: No opening was recorded after that hour., claim: entry, holds: false }
       - { id: s4, text: The register carries one entry timed at half past three., claim: entry, holds: true }
   chosen: { of: statements, where: "in(held, item)" }
+  # A log is a group that grows, so it is declared here with the rest. A checkbox
+  # comes off again, so this one removes by identity and not by being the last
+  # one written.
+  held: { fields: [statement], keeps: unique, removes: any }
+marks:
+  clash: { as: highlight, note: these will not hold together }
+names:
   # Grouped before it is quantified: `split` asks whether one claim has been
   # answered both ways, not whether two answers of opposite sign exist anywhere.
   broken:
-    of: chosen
+    over: chosen
     by: claim
     test: split
-    keep: claim
-marks:
-  clash: { as: highlight, note: these will not hold together }
-logs:
-  # A checkbox comes off again, so this log removes by identity and not by being
-  # the last one written.
-  held: { fields: [statement], keeps: unique, removes: any }
-names:
   holding: count(chosen)
   clashes: count(broken)
+moves:
+  # One gesture that both writes and unwrites, which is what a checkbox is.
+  hold:
+    writes: [held]
+    logs: { held: { statement: "{item.id}" } }
+    to: toggle
+    control: checkbox
 phrases:
   # The component joins with ", and " at every join, so "A, and B" is what it
-  # prints and `sep:` is what has to be able to say it.
+  # prints and both separators say the same thing.
   both-ways:
-    list: broken
-    field: claim.about
-    sep: ", and "
+    list: { of: broken, field: claim.about, sep: ", and ", last: ", and " }
     cases:
       - say: "{both-ways.list}"
   verdict:
@@ -53,15 +56,8 @@ phrases:
       - say: These {holding} can stand together.
 ---
 
-```calamus
-each: statements
-```
-
-:set[{item.text}]{add=held statement="{item.id}" to=toggle control=checkbox}
-
-```calamus
-end
-```
+:each{of=statements}
+:do[{item.text}]{move=hold}
 
 :with{live=status mark=clash}
 {verdict}

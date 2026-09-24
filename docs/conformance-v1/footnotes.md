@@ -1,6 +1,5 @@
 ---
 title: They had agreed to meet in the evening
-calamus: 1
 lang: en
 groups:
   notes:
@@ -10,12 +9,12 @@ groups:
       - { id: n11,  mark: "1.1",     text: "It was, strictly speaking, still the afternoon.", child: n11a }
       - { id: n11a, mark: "1.1.a",   text: The clock in the hall had been ten minutes wrong for a decade., child: n11ai }
       - { id: n11ai, mark: "1.1.a.i", text: Nobody tall enough to reach it had ever been told. }
+  # A log is a group that grows. A chain, not a book: backing up one note takes
+  # the last entry off again.
+  chain: { fields: [note], keeps: unique, removes: last }
 marks:
   note-number: { as: label }
   note-mark:   { as: reference }
-logs:
-  # A chain, not a book: backing up one note takes the last entry off again.
-  chain: { fields: [note], keeps: unique, removes: last }
 names:
   depth: count(chain)
   total: count(notes)
@@ -25,10 +24,12 @@ moves:
   # Three effects in one gesture: empty the chain, put note 1 on it, carry the
   # focus. No single inline verb can do all three.
   open-note-one:
+    writes: [chain]
     resets: chain
     logs: { chain: { note: n1 } }
     focus: chain
   open-next:
+    writes: [chain]
     logs: { chain: { note: "{next-note.id}" } }
     focus: chain
 phrases:
@@ -41,17 +42,17 @@ phrases:
 ---
 
 They had agreed to meet in the evening
-:go[1]{move=open-note-one mark=note-mark}, and only one of them arrived.
+:mark[:do[1]{move=open-note-one}]{kind=note-mark}, and only one of them arrived.
 
 ```calamus
 each: chain
 step: --step
 ```
 
-:mark[{entry.note.mark}]{as=note-number} {entry.note.text}
+:mark[{item.note.mark}]{kind=note-number} {item.note.text}
 
-:with{when="entry == last(chain) and entry.note.child"}
-:go[{next-note.mark}]{move=open-next mark=note-mark}
+:with{when="item == last(chain) and item.note.child"}
+:mark[:do[{next-note.mark}]{move=open-next}]{kind=note-mark}
 
 ```calamus
 end

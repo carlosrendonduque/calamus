@@ -1,20 +1,24 @@
 ---
 title: Five ways out of the orchard
-calamus: 1
 lang: en
 groups:
   turns:
     fields: [name, line]
     items:
-      - name: the gap in the hedge
+      - id: hedge
+        name: the gap in the hedge
         line: The field beyond has been mown since you last looked at it.
-      - name: the pump house
+      - id: pump
+        name: the pump house
         line: Unlocked, and the water still moving somewhere under the floor.
-      - name: the low wall
+      - id: wall
+        name: the low wall
         line: Someone has set the copings back in the wrong order.
-      - name: the line of hives
+      - id: hives
+        name: the line of hives
         line: Quiet, and the quiet has plainly been arranged.
-      - name: the gate off the map
+      - id: gate
+        name: the gate off the map
         line: >-
           Which is how you know the map was drawn by someone who came this way
           twice.
@@ -22,10 +26,14 @@ groups:
   # the component is not authored content: what is authored is that the order is
   # unstable, which is a name the registry resolves.
   left: { of: turns, where: "not in(taken, item)" }
+  # A log is a group that grows.
+  taken: { fields: [name, line], keeps: duplicates, removes: none }
 marks:
   turn-name: { as: label }
-logs:
-  taken: { fields: [name, line], keeps: duplicates, removes: none }
+moves:
+  go-by:
+    writes: [taken]
+    logs: { taken: { name: "{item.name}", line: "{item.line}" } }
 names:
   remaining: count(left)
 phrases:
@@ -36,14 +44,15 @@ phrases:
         say: >-
           Nothing is left to take. The paragraph above is the orchard in the
           order you made.
-      - { is: 1, say: 1 turning left, and not where you last saw it. }
+      - { is: 1, say: "1 turning left, and not where you last saw it." }
       - say: "{remaining} turnings left, and not where you last saw them."
   # The component joins with ", " throughout and never reaches for a
   # conjunction, so `last:` is absent rather than defaulted.
   closed-behind:
-    list: taken
-    field: name
-    sep: ", "
+    list:
+      of: taken
+      field: name
+      sep: ", "
     cases:
       - { when: "count(taken) == 0", say: "" }
       - { say: "Closed behind you: {closed-behind.list}." }
@@ -59,7 +68,7 @@ live: polite
 empty: You are standing in the middle of the trees, and every way out is still open.
 ```
 
-:mark[{entry.name}.]{as=turn-name} {entry.line}
+:mark[{item.name}.]{kind=turn-name} {item.line}
 
 ```calamus
 end
@@ -70,7 +79,7 @@ each: left
 order: unstable
 ```
 
-:log[Go by {item.name}]{add=taken name="{item.name}" line="{item.line}"}
+:do[Go by {item.name}]{move=go-by}
 
 ```calamus
 end

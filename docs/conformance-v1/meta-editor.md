@@ -1,6 +1,5 @@
 ---
 title: The editor's hand
-calamus: 1
 lang: en
 groups:
   # An ordered table of substitutions. The order is the author's: each rule runs
@@ -8,9 +7,9 @@ groups:
   rules:
     fields: [from, to]
     items:
-      - { from: I saw, to: I believe I saw }
-      - { from: does not, to: appears not to }
-      - { from: certainly, to: perhaps }
+      - { id: saw, from: I saw, to: I believe I saw }
+      - { id: does-not, from: does not, to: appears not to }
+      - { id: certainly, from: certainly, to: perhaps }
 variables:
   line:
     type: string
@@ -25,7 +24,7 @@ variables:
     control-at: panel
     label: the editor's hand
 marks:
-  edited: { as: underline, note: was {part.was} }
+  edited: { as: underline, note: "was {part.was}" }
 slots:
   # An inline variation whose parameter is a table, which is the case decision 27
   # has no granularity for. The rich data stays in a declaration; the prose only
@@ -51,11 +50,13 @@ phrases:
   # A joined list whose items are not a field but a sentence built from two
   # fields. `field:` cannot say this.
   house-style:
-    list: rules
-    # There is no field to name. `field:` takes one name and the item here is a
-    # sentence built from two, so this join is not writable in v1 at all.
-    field: ???            # unexpressible
-    sep: "; "
+    list:
+      of: rules
+      # There is no field to name. `field:` takes one name and the item here is a
+      # sentence built from two, so this join is still not writable.
+      field: ???            # unexpressible
+      sep: "; "
+      last: "; "
     cases:
       - say: "{house-style.list}"
 ---

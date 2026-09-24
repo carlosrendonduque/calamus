@@ -1,6 +1,5 @@
 ---
 title: The corridor and the two doors
-calamus: 1
 lang: en
 groups:
   doors:
@@ -8,16 +7,22 @@ groups:
     items:
       - { id: north, name: the north door }
       - { id: south, name: the south door }
-logs:
+  # Two logs, declared with the groups because a log is a group that grows.
   # Counting by appending, so nothing has to be added to anything.
   readings: { fields: [], keeps: duplicates, removes: none }
   chosen: { fields: [door], keeps: duplicates, removes: none }
 # The example opens mid-reading on purpose: two readings already done and the
-# north door already used. `opens:` gives a log a literal length so the author
-# does not have to write two empty entries by hand.
+# north door already used. `readings:` gives the reading count a literal value so
+# the author does not have to write two empty entries by hand.
 opens:
   readings: 2
-  chosen: [{ door: north }]
+  logs:
+    chosen: [{ door: north }]
+moves:
+  # The gesture names itself; what it writes is declared once, here.
+  go-through:
+    writes: [chosen]
+    logs: { chosen: { door: "{item.id}" } }
 names:
   readings-so-far: count(readings)
   doors-opened: count(chosen)
@@ -72,15 +77,8 @@ phrases:
 
 {where-you-went}
 
-```calamus
-each: doors
-```
-
-:log[Go through {item.name}]{add=chosen door="{item.id}"}
-
-```calamus
-end
-```
+:each{of=doors}
+:do[Go through {item.name}]{move=go-through}
 
 :with{live=status}
 {tally}

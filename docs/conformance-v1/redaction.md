@@ -1,6 +1,5 @@
 ---
 title: The clerk's report
-calamus: 1
 lang: en
 # Three spans, three variables, three phrases. The three phrases differ only in
 # the name they dispatch on: the label belongs to the span, and a phrase has no
@@ -11,6 +10,24 @@ variables:
   page-two: { type: boolean, default: false, control: toggle, control-at: prose }
 marks:
   withheld: { as: cover }
+moves:
+  # One write verb in the prose, and the rest of the gesture — that it toggles,
+  # and what it tells a screen reader — declared once with the move it names.
+  show-inside:
+    writes: [inside]
+    sets: { inside: toggle }
+    to: toggle
+    note: "{inside-label}"
+  show-address:
+    writes: [address]
+    sets: { address: toggle }
+    to: toggle
+    note: "{address-label}"
+  show-page-two:
+    writes: [page-two]
+    sets: { page-two: toggle }
+    to: toggle
+    note: "{page-two-label}"
 phrases:
   inside-label:
     on: inside
@@ -29,13 +46,13 @@ phrases:
       - { say: Reveal the redacted words }
 ---
 
-The clerk recorded that the door had been locked from :set[the
-inside]{var=inside to=toggle mark=withheld note="{inside-label}"}, and wrote
-nothing else about the door.
+The clerk recorded that the door had been locked from
+:mark[:do[the inside]{move=show-inside}]{kind=withheld}, and wrote nothing else
+about the door.
 
 Every visitor who signed the register that week gave the same address, which
-turned out to be :set[a house standing empty]{var=address to=toggle
-mark=withheld note="{address-label}"}.
+turned out to be
+:mark[:do[a house standing empty]{move=show-address}]{kind=withheld}.
 
-:set[The second page of the report]{var=page-two to=toggle mark=withheld
-note="{page-two-label}"} was taken out before the file was copied.
+:mark[:do[The second page of the report]{move=show-page-two}]{kind=withheld} was
+taken out before the file was copied.

@@ -1,28 +1,32 @@
 ---
 title: The visitors' book
-calamus: 1
 lang: en
 groups:
   places:
     fields: [place]
     items:
-      - { place: the reading room }
-      - { place: the map case }
-      - { place: the annex stair }
-      - { place: the courtyard }
-marks:
-  # Both conditions live in the declaration, and both are read in the scope of
-  # the entry being printed: the line is ruled through and the word is a badge.
-  withdrawn: { as: strike, when: "entry.struck", note: withdrawn }
-  badge:     { as: note,   when: "entry.struck" }
-logs:
-  # The porter rubs nothing out: entries are marked, never removed. `marks:`
-  # names the fields a later line may write on an entry already in the book.
+      - { id: reading-room, place: the reading room }
+      - { id: map-case, place: the map case }
+      - { id: annex-stair, place: the annex stair }
+      - { id: courtyard, place: the courtyard }
+  # A log is a group that grows. The porter rubs nothing out: entries are marked,
+  # never removed. `marks:` names the fields a later line may write on an entry
+  # already in the book.
   book:
     fields: [place, struck]
     keeps: duplicates
     removes: none
     marks: [struck]
+marks:
+  # Both conditions live in the declaration, and both are read in the scope of
+  # the entry being printed: the line is ruled through and the word is a badge.
+  withdrawn: { as: strike, when: "item.struck", note: withdrawn }
+  badge:     { as: note,   when: "item.struck" }
+moves:
+  # The gesture names itself; what it writes is declared once, here.
+  cross-to:
+    writes: [book]
+    logs: { book: { place: "{item.place}" } }
 names:
   standing: count(book where not struck)
   crossed-out: count(book where struck)
@@ -63,21 +67,14 @@ current: here
 ```
 
 :with{mark=withdrawn}
-{entry.place}:mark[struck]{as=badge}
+{item.place}:mark[struck]{kind=badge}
 
 ```calamus
 end
 ```
 
-```calamus
-each: places
-```
-
-:log[Cross to {item.place}]{add=book place="{item.place}"}
-
-```calamus
-end
-```
+:each{of=places}
+:do[Cross to {item.place}]{move=cross-to}
 
 :with{live=polite}
 {report}

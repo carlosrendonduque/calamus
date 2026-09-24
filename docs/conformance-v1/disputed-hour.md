@@ -1,15 +1,14 @@
 ---
 title: One hour, kept twice
-calamus: 1
 lang: en
 groups:
   minutes:
     fields: [time, gate, warden, agrees]
     items:
-      - { time: "03:14", gate: Door six opened., warden: Nothing to report., agrees: false }
-      - { time: "03:16", gate: Lights on in the yard., warden: Lights on in the yard., agrees: true }
-      - { time: "03:17", gate: "A metal sound, twice.", warden: "Wind in the duct, as it is most nights.", agrees: false }
-      - { time: "03:22", gate: Signal lost., warden: Equipment working normally., agrees: false }
+      - { id: m14, time: "03:14", gate: Door six opened., warden: Nothing to report., agrees: false }
+      - { id: m16, time: "03:16", gate: Lights on in the yard., warden: Lights on in the yard., agrees: true }
+      - { id: m17, time: "03:17", gate: "A metal sound, twice.", warden: "Wind in the duct, as it is most nights.", agrees: false }
+      - { id: m22, time: "03:22", gate: Signal lost., warden: Equipment working normally., agrees: false }
   # No conditional needed: the filter is off when the variable is off.
   shown: { of: minutes, where: "not agrees or not only-disputed" }
 variables:
@@ -45,7 +44,7 @@ phrases:
 each: shown
 ```
 
-:with{weight=time}
+:with{role=time}
 {item.time} — {verdict}
 
 {item.gate}

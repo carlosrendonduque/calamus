@@ -1,6 +1,5 @@
 ---
 title: The north stair
-calamus: 1
 lang: en
 groups:
   voices:
@@ -48,8 +47,8 @@ live: polite
 
 {speaking.account}
 
-:with{weight=caption}
-:mark[{speaking.who}]{as=who} {speaking.source}
+:with{role=caption}
+:mark[{speaking.who}]{kind=who} {speaking.source}
 
 ```calamus
 end

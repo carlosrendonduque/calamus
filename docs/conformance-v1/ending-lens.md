@@ -1,14 +1,13 @@
 ---
 title: The same three facts
-calamus: 1
 lang: en
 groups:
   facts:
     fields: [text]
     items:
-      - { text: The door was locked from the inside. }
-      - { text: The register carries a name in a hand nobody recognised. }
-      - { text: The clerk left at eleven and did not come back. }
+      - { id: lock, text: The door was locked from the inside. }
+      - { id: name, text: The register carries a name in a hand nobody recognised. }
+      - { id: clerk, text: The clerk left at eleven and did not come back. }
   lenses:
     fields: [id, label, ending]
     items:

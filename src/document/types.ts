@@ -115,7 +115,7 @@ export type PhraseDef = {
   plural?: string;
   /** Joining a list: the author supplies the separators literally, because
    *  Spanish turns "y" into "e" before i- and the library must never choose. */
-  list?: { of: string; field: string; sep: string; last: string };
+  list?: { of: string; field: string; sep: string; last?: string };
   /** A phrase with nothing to choose between is a single unconditional clause. */
   say?: string;
   cases?: PhraseCase[];
@@ -135,6 +135,8 @@ export type VariableDef = {
   control?: "range" | "toggle" | "choice" | "text";
   /** Appended to the CSS custom property. `gutter: 28` needs `px` to be valid. */
   unit?: string;
+  /** Prose someone reads. Ten of nineteen documents label a control. */
+  label?: string;
   persist?: boolean;
 };
 
@@ -196,6 +198,8 @@ export type Block =
   | { kind: "region"; id: string; body: Block[] }
   /** A registry view occupying a block. */
   | { kind: "slot"; name: string; params: Record<string, unknown>; body: Block[] }
+  /** A control or a button standing on its own. Eight of nineteen end in one. */
+  | { kind: "affordance"; action: "go" | "show" | "do"; target: string; label: string; when?: Expression }
   /** Blank measure, which in Mallarmé is grammar rather than styling. */
   | { kind: "blank"; lines: number }
   /** An island whose name nothing resolved: kept verbatim and re-serialised. */

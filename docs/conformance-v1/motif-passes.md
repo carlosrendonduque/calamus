@@ -1,6 +1,5 @@
 ---
 title: The inventory of the landing
-calamus: 1
 lang: en
 variables:
   keeping:
@@ -37,11 +36,11 @@ phrases:
           underlined, struck words are ruled through.
 ---
 
-The inventory lists one :mark[door]{as=kept when=keeping} on the landing. The
+The inventory lists one :mark[door]{kind=kept when=keeping} on the landing. The
 clerk who signed it wrote that the landing stood
-:mark[empty]{as=struck when=striking}, and the clerk who countersigned it wrote
-that the :mark[door]{as=kept when=keeping} had been counted twice and that the
-landing was never :mark[empty]{as=struck when=striking} at all.
+:mark[empty]{kind=struck when=striking}, and the clerk who countersigned it wrote
+that the :mark[door]{kind=kept when=keeping} had been counted twice and that the
+landing was never :mark[empty]{kind=struck when=striking} at all.
 
 :with{live=status}
 {marking}
