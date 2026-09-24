@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
 import type { CSSProperties } from "react";
+import "./typography.css";
 
 const PASSAGE =
   "The tide came in over the letters cut into the stone, and went out again, and came in, " +

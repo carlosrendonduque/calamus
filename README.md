@@ -414,8 +414,12 @@ npm install
 npm run dev
 ```
 
-`npm run build:demo` builds the same site into `dist-demo/`; `npm run preview` then serves it
-at `http://localhost:4173/calamus/`, under the same subpath it ships on.
+`npm run build:demo` builds the same site into `dist-demo/`. Serve that directory with any
+static file server to see exactly what ships — `npx serve dist-demo` or
+`python3 -m http.server -d dist-demo` both work. `npm run preview` does **not**: the pinned
+Vite's preview server answers 404 to any request carrying `Sec-Fetch-Dest: script`, which is
+every script load a browser makes, so the page comes up blank. The built output is fine; only
+that one server is.
 
 A public-domain demo corpus lives in `examples/corpus/`, with `examples/README.md` describing
 the texts, their provenance and which mode each is chosen to exercise: English prose for

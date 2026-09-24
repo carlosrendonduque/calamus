@@ -75,8 +75,14 @@ There is no linter and no formatter in the repo. Match the existing style by han
 
 The playground doubles as the published demo, so its build is subpath-aware: `npm run dev`
 serves it at `/`, while `npm run build:demo` writes `dist-demo/` with a `/calamus/` base and
-`npm run preview` serves that at `http://localhost:4173/calamus/`. The library build (`npm run
-build`, tsup) owns `dist/` and wipes it, which is why the demo has its own output directory.
+serve `dist-demo/` with any static file server to see what actually ships. The library build
+(`npm run build`, tsup) owns `dist/` and wipes it, which is why the demo has its own output
+directory.
+
+Do not use `npm run preview` for this. On the pinned Vite, its preview server returns 404 for
+any request carrying the `Sec-Fetch-Dest: script` header — which every browser sends on a
+script load — so the page renders blank while `curl` on the same URL returns 200. The build is
+not at fault, and GitHub Pages serves the same files correctly.
 
 ## Code style
 

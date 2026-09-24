@@ -161,6 +161,9 @@
 .playground__media-range {
   display: flex;
   align-items: center;
+  /* On a phone the timecode drops below rather than squeeze the track: here the
+     track is the instrument, and a scrub of twelve seconds needs the length. */
+  flex-wrap: wrap;
   gap: 0.5rem;
   font-family: var(--calamus-mono-font);
   font-size: 0.74rem;
@@ -170,7 +173,12 @@
 }
 
 .playground__media-range input[type="range"] {
+  /* The basis is a preference, not a floor. A definite width goes in place of
+     the widget's own, which is what a flex row measures the track by; without
+     it the row keeps 8rem of track and carries the reader sideways. */
   flex: 1 1 8rem;
+  min-width: 0;
+  width: 100%;
   max-width: 14rem;
   accent-color: var(--calamus-accent);
 }

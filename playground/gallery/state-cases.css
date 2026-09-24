@@ -45,8 +45,14 @@
   color: var(--calamus-muted);
 }
 
+/* The panel sizes a slider for a desktop column: an 8rem floor under the track
+   and a 4.2rem readout beside it are wider than a phone gives the reading
+   column. The floor goes, and a definite width goes in place of the widget's
+   own, which is what a flex row measures the track by. */
 .playground__trust .control__range input[type="range"] {
   accent-color: var(--calamus-accent);
+  min-width: 0;
+  width: 100%;
 }
 
 .playground__trust-account {

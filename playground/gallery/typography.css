@@ -17,6 +17,19 @@
   gap: 0.9rem;
 }
 
+/* The panel sizes a slider for a desktop column: an 8rem floor under the track,
+   a 4.2rem readout beside it, and the row is wider than a phone gives the
+   reading column, so it carried the reader sideways rather than shrink. The
+   floor goes, and a definite width goes in place of the widget's own, which is
+   what a flex row measures the track by. The readout keeps its size: in these
+   three it is half of what the example reports. */
+.playground__erosion .control__range input[type="range"],
+.playground__type-columns .control__range input[type="range"],
+.playground__type-measure .control__range input[type="range"] {
+  min-width: 0;
+  width: 100%;
+}
+
 /* The tilt is clipped rather than scrolled: a rotated block grows a little each
    side, and the page is not going to move for it. The gap opens as the stack
    scatters, because two blocks leaning opposite ways meet in the middle. */
@@ -74,7 +87,9 @@
   padding-block-end: 0.55rem;
   border-block-end: 1px solid var(--calamus-border);
   width: fit-content;
-  min-width: 14rem;
+  /* Wide enough that the glass reads as a surface rather than as an underline,
+     but never wider than the column it is set in. */
+  min-width: min(14rem, 100%);
 }
 
 .playground__type-reflection {

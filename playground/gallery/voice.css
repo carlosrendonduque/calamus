@@ -121,8 +121,9 @@ s.playground__motif.is-struck {
 .playground__accounts-pair {
   display: grid;
   gap: 0.7rem;
-  /* One column as soon as the panel is narrower than two readable ones. */
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  /* One column as soon as the panel is narrower than two readable ones, and a
+     column no wider than the panel when it is narrower than one. */
+  grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
 }
 
 .playground__account {
@@ -209,7 +210,7 @@ s.playground__motif.is-struck {
   margin: 0.5rem 0 0;
   display: grid;
   gap: 0.45rem 1.1rem;
-  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
 }
 
 .playground__dispute-sources dt {
