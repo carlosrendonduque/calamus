@@ -341,11 +341,16 @@ function readVariable(name: string, node: YamlNode, context: Context): VariableD
   const optionLabels = entry(node, "option-label");
   if (optionLabels !== null) {
     const perOption = labelsPerOption(optionLabels);
+    // One clause read with the option bound, exactly as `PhraseDef.of` works,
+    // which is what every document taking its options from a group writes: a
+    // per-option map cannot label each option with its own field.
+    const oneClause = text(optionLabels);
     if (perOption) variable.optionLabels = perOption;
+    else if (oneClause !== null) variable.optionLabels = oneClause;
     else
       context.diagnostics.push({
         severity: "warning",
-        message: `The option label of \`${name}\` is one clause read in the scope of each option${text(optionLabels) === null ? "" : ` (\`${text(optionLabels)}\`)`}, and \`VariableDef.optionLabels\` holds one label per option; it was dropped.`,
+        message: `The option label of \`${name}\` is a phrase with cases, and \`VariableDef.optionLabels\` holds one label per option or one clause read with the option bound; it was dropped.`,
         line: optionLabels.line,
       });
   }
@@ -940,7 +945,12 @@ function readIsland(content: string, firstLine: number, raw: string, context: Co
 
   if (first === "each") {
     const spec = groupSpec(text(entry(node, "each")) ?? "", node.line, context);
-    noteUnusedKeys(node, ["each", "order", "empty", "heading", "label", ...BLOCK_ATTRIBUTES], "an `each` island", context);
+    noteUnusedKeys(
+      node,
+      ["each", "order", "empty", "heading", "label", "as", "current", ...BLOCK_ATTRIBUTES],
+      "an `each` island",
+      context
+    );
     const block: Block & { body: Block[] } = { kind: "each", group: spec.group, body: [] };
     if (spec.where) block.where = spec.where;
     // The order of what a group prints is structure, not presentation, so the
@@ -962,6 +972,25 @@ function readIsland(content: string, firstLine: number, raw: string, context: Co
     if (heading !== null) block.heading = heading;
     const label = text(entry(node, "label"));
     if (label !== null) block.label = label;
+    // What the loop is presented as — a list, an apparatus, a column — which is
+    // the author's word for the shape, carried and never read here.
+    const presentedAs = text(entry(node, "as"));
+    if (presentedAs !== null) block.as = presentedAs;
+    // Which item the reader is on. A value, not a name, so it is read: `last(…)`,
+    // or a declared name standing for one.
+    const current = entry(node, "current");
+    if (current !== null) {
+      const said = text(current);
+      if (said === null) {
+        context.diagnostics.push({
+          severity: "warning",
+          message: "`current:` on an `each` island is the value the reader is on, read as an expression; it is not one and was dropped.",
+          line: current.line,
+        });
+      } else {
+        block.current = parseExpression(said, current.line, context.diagnostics);
+      }
+    }
     return { kind: "open", block, opener: "each" };
   }
 
@@ -1143,6 +1172,15 @@ function readGestureMoves(node: YamlNode | null, context: Context): { moves: Mov
           moves.push({ kind: "add", log: grown.key, entry: written });
         }
         break;
+      case "removes": {
+        // A log whose discipline is `removes: last` already says which entry
+        // goes, so the gesture names the log and nothing else.
+        for (const one of items(gesture.value)) {
+          const log = text(one);
+          if (log !== null) moves.push({ kind: "remove", log });
+        }
+        break;
+      }
       case "resets": {
         // A reset states where each name goes. `resets: [a, b]` means "back to
         // what they opened on", which the reducer reads as an absent destination.

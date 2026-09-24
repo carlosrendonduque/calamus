@@ -323,9 +323,17 @@ function affordance(directive: Directive, children: Inline[], line: number, diag
   const { attributes } = directive;
   const { action, target, used } = readGesture(directive, line, diagnostics);
   const focus = attributes.focus;
-  noteDroppedAttributes(directive, [...used, "focus", "when"], `a \`${action}\` affordance`, line, diagnostics);
+  noteDroppedAttributes(directive, [...used, "focus", "when", "item", "id"], `a \`${action}\` affordance`, line, diagnostics);
   const result: Inline = { kind: "affordance", action, target, children };
   if (focus) result.focus = focus.value !== "false";
+  // `item=` is an argument to the move, so one move serves many spans instead of
+  // one move per span; `id=` is the span being left, so a return knows where to
+  // put the focus back. Both are schema keys of `Inline.affordance`, and the
+  // names they carry are the author's.
+  const argument = attributeValue(attributes, "item");
+  if (argument !== null && argument !== "") result.item = argument;
+  const leaving = attributeValue(attributes, "id");
+  if (leaving !== null && leaving !== "") result.id = leaving;
   const when = expressionAttribute(attributes, "when", line, diagnostics);
   if (when) result.when = when;
   return result;

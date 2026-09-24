@@ -829,7 +829,10 @@ describe("the islands the format opens", () => {
     ]);
   });
 
-  it("keeps the label of a control whose gesture `Move` cannot carry", () => {
+  it("carries a removal written where the control stands", () => {
+    // A log whose discipline is `removes: last` already says which entry goes,
+    // so the gesture names the log and nothing else. Until this was carried,
+    // `footnotes`' "Back up one note" was a button that did nothing.
     const { document: read, diagnostics } = document(
       "---",
       "title: T",
@@ -842,9 +845,16 @@ describe("the islands the format opens", () => {
       "```",
     );
     expect(errorsOf(diagnostics)).toEqual([]);
-    expect(read.body).toEqual([{ kind: "affordance", action: "do", target: "", label: "Back up one note" }]);
-    expect(warningsOf(diagnostics)).toHaveLength(1);
-    expect(warningsOf(diagnostics)[0].message).toContain("removes");
+    expect(warningsOf(diagnostics)).toEqual([]);
+    expect(read.body).toEqual([
+      {
+        kind: "affordance",
+        action: "do",
+        target: "",
+        label: "Back up one note",
+        gesture: [{ kind: "remove", log: "chain" }],
+      },
+    ]);
   });
 });
 
@@ -946,7 +956,7 @@ describe("a variable the reader can move", () => {
     expect(read.variables.lens.of).toBeUndefined();
   });
 
-  it("reads a label per option, and says so when there is one clause for all", () => {
+  it("reads a label per option, and one clause read with the option bound", () => {
     const { document: read, diagnostics } = document(
       "---",
       "title: T",
@@ -967,9 +977,36 @@ describe("a variable the reader can move", () => {
     );
     expect(errorsOf(diagnostics)).toEqual([]);
     expect(read.variables.lens.optionLabels).toEqual({ haunting: "as haunting", grief: "as grief" });
-    expect(read.variables.voice.optionLabels).toBeUndefined();
+    // The string variant: one clause, read with the option bound, exactly as
+    // `PhraseDef.of` works. A per-option map cannot label each option with its
+    // own field, which is why every document taking its options from a group
+    // writes this shape.
+    expect(read.variables.voice.optionLabels).toBe("{item.who}");
+    expect(warningsOf(diagnostics)).toEqual([]);
+  });
+
+  it("drops an option label that is a phrase with cases, and says which variable", () => {
+    const { document: read, diagnostics } = document(
+      "---",
+      "title: T",
+      "variables:",
+      "  cols:",
+      "    type: number",
+      "    of: [1, 2, 3]",
+      "    default: 2",
+      "    option-label:",
+      "      of: option",
+      "      cases:",
+      "        - { is: 1, say: 1 column }",
+      '        - { say: "{option} columns" }',
+      "---",
+      "",
+      "P.",
+    );
+    expect(errorsOf(diagnostics)).toEqual([]);
+    expect(read.variables.cols.optionLabels).toBeUndefined();
     expect(warningsOf(diagnostics)).toHaveLength(1);
-    expect(warningsOf(diagnostics)[0].message).toContain("{item.who}");
+    expect(warningsOf(diagnostics)[0].message).toContain("cols");
   });
 });
 
