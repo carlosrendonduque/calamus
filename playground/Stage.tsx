@@ -1,8 +1,22 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Reader } from "../src";
+import { Reader, type ReaderContent } from "../src";
 import { renderControl } from "./ControlsPanel";
 import { STAGE_HEIGHT_CONTROL } from "./controls";
 import { HypertextDemo } from "./HypertextDemo";
+
+/**
+ * In `hypertext` the reader renders the document and then gets out of the way,
+ * so `children` come after the reading rather than instead of it. The gallery is
+ * what this mode exists to show, so the document here is one framing line -- the
+ * whole chapter would bury it, which is exactly what it did once.
+ */
+const HYPERTEXT_FRAME: ReaderContent = {
+  title: "Hypertext",
+  subtitle: "gallery.md",
+  body: [
+    "The reader renders this paragraph, and then stops. Everything below it is markup passed in as children: thirty-two worked examples of what that allows."
+  ]
+};
 import {
   SAMPLE_CLASS_NAME,
   toContent,
@@ -72,7 +86,7 @@ export function Stage({ state, onChange }: StageProps) {
       </div>
       <div className="explorer__stage" ref={boxRef} style={{ height: state.stageHeight }}>
         <Reader
-          content={content}
+          content={state.mode === "hypertext" ? HYPERTEXT_FRAME : content}
           mode={state.mode}
           transition={state.transition}
           lang={state.lang || undefined}
