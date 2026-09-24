@@ -2,8 +2,40 @@
   "name": "calamus",
   "version": "0.1.0",
   "description": "Reusable React reader component for narrative prose.",
+  "keywords": [
+    "react",
+    "react-component",
+    "reader",
+    "reading-mode",
+    "narrative",
+    "interactive-narrative",
+    "digital-narrative",
+    "electronic-literature",
+    "hypertext",
+    "prose",
+    "typography",
+    "pagination",
+    "longform",
+    "zero-dependencies"
+  ],
+  "homepage": "https://github.com/carlosrendonduque/calamus#readme",
+  "bugs": {
+    "url": "https://github.com/carlosrendonduque/calamus/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carlosrendonduque/calamus.git"
+  },
   "license": "MIT",
+  "author": {
+    "name": "Carlos Rendon",
+    "email": "carlos.rendon.duque@gmail.com",
+    "url": "https://github.com/carlosrendonduque"
+  },
   "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,6 +55,7 @@
     "dev": "vite",
     "prepare": "npm run build",
     "build": "tsup && tsc -p tsconfig.build.json --noEmit",
+    "build:demo": "vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test": "vitest run"
