@@ -13,5 +13,5 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "playground", "vite.config.ts", "tsup.config.ts"]
+  "include": ["src", "playground", "examples", "tests", "vite.config.ts", "tsup.config.ts"]
 }

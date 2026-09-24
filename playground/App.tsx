@@ -1,20 +1,8 @@
 import { useState } from "react";
 import { Reader, type ReaderContent, type ReaderMode } from "../src";
-
-const SAMPLE: ReaderContent = {
-  title: "Cuaderno del pasillo interior",
-  subtitle: "apunte-07.txt",
-  body: [
-    "En la casa nueva hay un pasillo que no conduce a ninguna puerta. Por la tarde parece normal; por la noche respira como una garganta larga.",
-    "Ayer dejé una taza sobre el mueble del fondo y esta mañana amaneció tibia. No había sol en esa parte de la casa y, sin embargo, el borde conservaba un calor humilde.",
-    "Desde entonces camino más despacio. Escucho la madera, cuento los pasos y espero ese instante breve en que el silencio decide de qué lado quedarse.",
-    "No estoy buscando explicaciones, solo una forma de atender. Hay lugares que no quieren ser entendidos: quieren ser leídos, como si cada sombra fuera una frase todavía sin corregir.",
-    "El pasillo tiene su propia gramática: el crujido es una coma, la bombilla parpadeante una aclaración. Yo intento seguirla sin acelerar, como quien aprende una lengua a través de gestos.",
-    "Al apoyar la mano en la pared noto un frío que no es del material sino del recuerdo. A veces imagino que detrás de la pintura hay otra habitación, más antigua, esperando su turno.",
-    "Entre tanto, la tarde se llena de sonidos pequeños: el roce de una cortina, el zumbido del refrigerador, la respiración de la casa cuando por fin deja de fingir.",
-    "Escribo para no perder el hilo. Pero también escribo para que el hilo se vuelva cuerda, y la cuerda, un lazo: algo que me devuelva hacia lo que todavía no sé decir."
-  ]
-};
+import { tristramShandy } from "../examples/corpus/sterne-tristram-shandy";
+import { unCoupDeDes } from "../examples/corpus/mallarme-un-coup-de-des";
+import { ilPleut } from "../examples/corpus/apollinaire-il-pleut";
 
 const MODES: ReaderMode[] = ["scroll", "book", "terminal", "editorial", "hypertext"];
 
@@ -24,6 +12,32 @@ const labels: Record<ReaderMode, string> = {
   terminal: "Terminal",
   editorial: "Editorial",
   hypertext: "Hypertext"
+};
+
+const CONTENT_BY_MODE: Record<ReaderMode, ReaderContent> = {
+  scroll: tristramShandy,
+  book: tristramShandy,
+  terminal: tristramShandy,
+  editorial: unCoupDeDes,
+  hypertext: ilPleut
+};
+
+// The two French poems are announced as French, so screen readers and
+// hyphenation do not treat them as English.
+const LANG_BY_MODE: Record<ReaderMode, string> = {
+  scroll: "en",
+  book: "en",
+  terminal: "en",
+  editorial: "fr",
+  hypertext: "fr"
+};
+
+const CAPTIONS: Record<ReaderMode, string> = {
+  scroll: "Sterne reads as prose: one continuous column, with a progress bar.",
+  book: "The same chapter, measured and broken into pages.",
+  terminal: "The same chapter again, as a file being paged through.",
+  editorial: "Mallarmé in fragments, spread across columns and horizontal sheets.",
+  hypertext: "Apollinaire as a calligram: the reader hands the page to the host."
 };
 
 function RotatedQuote({ children }: { children: string }) {
@@ -38,6 +52,14 @@ function BlinkingNote({ children }: { children: string }) {
   return <div className="playground__blinking-note">{children}</div>;
 }
 
+function RainLine({ index, children }: { index: number; children: string }) {
+  return (
+    <p className="playground__rain-line" style={{ marginInlineStart: `${index * 1.4}rem` }}>
+      {children}
+    </p>
+  );
+}
+
 export function App() {
   const [mode, setMode] = useState<ReaderMode>("scroll");
 
@@ -45,7 +67,7 @@ export function App() {
     <main className="playground">
       <header className="playground__header">
         <h1>calamus playground</h1>
-        <p>Mismo contenido, cinco modos de lectura.</p>
+        <p>Five reading modes, one demo corpus. Pick a mode to see what it does to a text.</p>
       </header>
 
       <nav className="playground__modes" aria-label="Reader mode">
@@ -62,23 +84,34 @@ export function App() {
         ))}
       </nav>
 
-      <Reader mode={mode} content={SAMPLE} transition="fade">
+      <p className="playground__caption">{CAPTIONS[mode]}</p>
+
+      <Reader mode={mode} content={CONTENT_BY_MODE[mode]} transition="fade" lang={LANG_BY_MODE[mode]}>
         {mode === "hypertext" ? (
           <div className="playground__hypertext-demo">
             <p>
-              El pasillo también puede ser un tablero. En vez de avanzar por una sola línea, cada
-              bloque abre una forma distinta de atención.
+              In hypertext mode the reader renders its header and then steps aside: everything
+              below this point is your own markup, passed in as <code>children</code>.
             </p>
+            <div className="playground__rain" lang="fr">
+              {ilPleut.body.map((line, index) => (
+                <RainLine key={index} index={index}>
+                  {line}
+                </RainLine>
+              ))}
+            </div>
             <RotatedQuote>
-              "Toda lectura no lineal es una coreografía: el ojo decide su propio itinerario."
+              "A layout is an argument about how a text wants to be read."
             </RotatedQuote>
             <p>
-              El texto convive con piezas activas sin perder su voz. Lo importante no es simular
-              un libro, sino diseñar una experiencia legible.
+              On Apollinaire's page these five lines fall as five slanting columns of rain, one
+              letter at a time. The library has no opinion about that, which is the point: it gives
+              you the frame and the typography, and lets the piece keep its own shape.
             </p>
-            <BlinkingNote>signal: branch opened at node /pasillo/nota-3</BlinkingNote>
+            <BlinkingNote>node /calligrammes/il-pleut — 5 lines, 1 direction: down</BlinkingNote>
             <p>
-              Cuando termina esta sección, no hay cierre forzado: solo un nuevo punto de entrada.
+              Mix prose with components, animation or media here. Nothing in this block is
+              paginated, measured or reflowed by calamus.
             </p>
           </div>
         ) : null}
