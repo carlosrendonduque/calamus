@@ -298,6 +298,89 @@ arquitectura estructural. Presupuesto: 150–250 líneas. Todo lo demás es reor
   del 20%.**
 - **Migración de consumidores: cero.** Sin publicar, un consumidor privado y cerrado.
 
+## 9bis. El contrato de salida, y por qué lo decide el de entrada
+
+**Recomendación: un compilador.** Entra un documento, sale una **carpeta autocontenida con
+`index.html` en la raíz**. El escritor la publica como página y enlaza a ella, o la enmarca con
+dos etiquetas si controla su propio markup. El componente React sigue existiendo como motor
+dentro, y se publica en npm para desarrolladores.
+
+**Dos hallazgos lo deciden, y el primero reordena todo lo anterior.**
+
+**1. La pregunta de salida la decide la de entrada, por culpa de `hypertext`.** Medido: los 34
+archivos de `playground/gallery/` usan `useState` o `useReducer`, cinco animan SVG y dos
+sintetizan audio. **Eso es código, no datos.** Cualquier contrato que no pueda llevar el código
+del autor amputa justo el modo para el que existe el rediseño.
+
+La conciliación con las secciones anteriores —y es importante no confundirlas— es que hay **tres
+artefactos, no uno**:
+
+| Artefacto | Qué es | Quién lo escribe |
+|---|---|---|
+| **Documento autoriado** | prosa Markdown con islas cercadas | el escritor, en Conato |
+| **Registro** | los componentes que resuelven las directivas por nombre | el programador, una vez por efecto |
+| **Página compilada** | HTML autocontenido | el compilador |
+
+Los 34 ejemplos de la galería **no son documentos: son entradas del registro.** Esa distinción es
+la que evita el error de creer que el documento tiene que llevar código dentro.
+
+**2. calamus está escrito como si fuera dueño del viewport.** Cuatro fugas medidas, y la primera
+es un **bug vivo que contradice la funcionalidad de la decisión 18**:
+
+- `EditorialReader.tsx:41` decide la cuenta de columnas con `window.matchMedia("(min-width: 768px)")`
+  — **el viewport, no el contenedor.** Una tarjeta de 380px en un escritorio ancho recibe dos
+  columnas de 170px. Publicamos `maxHeight: "100%"` para meter el lector en una caja y esto lo
+  deja a medias.
+- Tipografía fluida por `vw` (`clamp(1.7rem, 2.9vw, 2.3rem)` y tres más).
+- `78vh` como altura por defecto, en seis sitios.
+- Todo dimensionado en `rem`, que hereda del documento anfitrión.
+
+**El hallazgo negativo más útil: el shadow DOM no aísla `rem`, `vw`, `vh` ni una media query** —
+exactamente las cuatro cosas que rompen calamus. Es la respuesta refleja y la peor relación
+coste/beneficio del conjunto: pagas el bundle de React y el problema de los slots para bloquear
+reglas `p {}` del anfitrión, que el prefijo `calamus__` ya evita. Un iframe aísla las cuatro,
+gratis.
+
+**Y el dato que reencuadra el encargo: la mayoría de los escritores no pueden embeber nada.**
+Substack, Medium, Notion, WordPress.com gratuito y Squarespace Personal eliminan scripts *e*
+iframes; solo despliegan URLs de una lista blanca en la que calamus nunca va a estar. Así que
+quien **puede** pegar HTML es, por definición, alguien que controla su markup — o sea, técnico.
+**Una página propia a la que enlazar es el único contrato que alcanza a los dos grupos.**
+
+### Coste, sin adornos
+
+- **Un CLI que no existe.** La pieza de trabajo más grande. La tensión con «cero dependencias» se
+  resuelve como lo hizo Twine: sustitución de plantillas sobre el `dist/` ya compilado, `fs` y
+  concatenación de cadenas, de modo que el escritor no instala nada.
+- **~53 KB gzip** de salida — medido: la librería son 7,7 KB y React con React-DOM 45,1 KB. **El
+  runtime es 5,9 veces la librería.** Aceptable para una página.
+- **Mueren tres promesas:** el CSS del anfitrión ya no puede estilar el lector, su tipografía no
+  se hereda, y nada puede desbordar el marco.
+- **Los 32 ejemplos no portan como documentos.** Son React — son registro. El formato de cara al
+  escritor necesita sus propios ejemplos, que es un proyecto de documentación entero y es fácil
+  dejarlo fuera de la estimación.
+
+### El modo de fallo más probable
+
+**El bucle de la decisión 19, resucitado al otro lado de una frontera de proceso.** Dentro de un
+iframe de altura automática, `78vh` es el 78% de la altura que el propio protocolo está tratando
+de calcular — la misma dependencia que la decisión 19 eliminó, pero ahora el `ResizeObserver`
+solo ve un lado, así que se presenta como **parpadeo misterioso** y no como un bug reconocible.
+El CSSWG rechazó la altura automática nativa en iframes en buena parte por esto. Prevención:
+altura explícita y no relativa al viewport siempre; fija o por proporción por defecto; automática
+solo opt-in y acotada.
+
+### Dos cosas que conviene hacer ya, decidas lo que decidas
+
+1. **Container queries.** `container-type: inline-size` en `.calamus-root`, `vw` → `cqi`, y borrar
+   la llamada a `matchMedia` a favor de `@container`. Arregla tres de las cuatro fugas y
+   **elimina** una dependencia de JS y del DOM, sin cambiar la API. Es el mayor valor por línea de
+   todo el análisis.
+2. **Declarar también los tokens en `:root`.** El commit `80a3d99` de hoy llegó a la misma
+   conclusión por el otro lado: la trampa de `.calamus-root` atrapó al explorador cuatro veces. Se
+   parcheó en `playground/`, así que **sigue viva para quien consuma la librería** y el arreglo
+   está donde puede desincronizarse.
+
 ## 10. Decisiones abiertas
 
 | # | Decisión | Recomendación |
@@ -306,8 +389,9 @@ arquitectura estructural. Presupuesto: 150–250 líneas. Todo lo demás es reor
 | B | ¿El documento posee la navegación, o el anfitrión? | **El documento.** El laberinto y los cinco `Path*` son estructura, no presentación. Pero es bifurcación real. |
 | C | Sintaxis de las condiciones | **Restringir a comparaciones contra variables y conteos de visita; rechazar aritmética.** Todo sistema con condiciones inventó un lenguajito y en todos es la parte más fea. Storyspace sostuvo el canon entero con siete atributos y **dos puertas** —guarda en el enlace, requisito en el nodo—, que es la restricción a imitar. |
 | D | ¿CSS columns sustituye a la paginación medida? | **Híbrido.** Columnas CSS para el interior de la hoja, contenedor con scroll-snap para las hojas, y **una** medición (`scrollWidth/clientWidth`) para cuenta e índice. Mata el bucle de la decisión 19 y hace *imposible* la inestabilidad de sub-píxel. |
-| E | Contrato de salida (embebido) | **Pendiente**: análisis en curso. |
+| E | Contrato de salida (embebido) | **Un compilador**: entra documento, sale carpeta autocontenida con `index.html`. El componente React sigue publicándose en npm para desarrolladores. **Dos artefactos, un renderizador, un formato de documento** — y la costura es el documento más una llamada a `mount()`, **nunca el renderizador**: si el compilador reimplementa el lector en JS plano para ahorrar los 45 KB de React, lo primero que diverge es el bucle de medición de la paginación, que ya produjo las decisiones 10 y 19 y el pendiente de sub-píxel. |
 | F | Sintaxis de las directivas | `remark-directive` da exactamente las tres granularidades que hacen falta —en línea, de bloque y envolvente— con nombre, atributos e hijos, medido. **Pero sus atributos son solo cadenas**: `0.7` vuelve como `"0.7"` y no hay forma de anidar datos. Para las ranuras con payload rico, isla cercada; para la variación de una frase, directiva. |
+| H | Fugas de viewport | **Container queries ya**, con o sin inversión. `EditorialReader.tsx:41` decide las columnas por el viewport y no por la caja: es un bug vivo que contradice la decisión 18, que publicamos hoy. |
 | G | Contrato de degradación | **Diseñarlo antes que el de éxito**, con los cuatro casos de la sección 7bis. Es la decisión que ningún sistema toma a tiempo y todos lamentan. |
 
 ## 11. Por dónde empezar
