@@ -1,0 +1,493 @@
+/* The document view.
+
+   Two halves and a header: the authored file on one side, the reading on the
+   other. The chrome borrows the explorer's own classes wherever one already
+   exists (`explorer__section`, `control__buttons`, `explorer__try`), so this
+   file only adds what the split itself needs -- and, at the bottom, the one
+   thing a host is supposed to add: a stylesheet for the author's own
+   vocabulary of marks and roles. */
+
+.docs {
+  /* The reading box has an explicit height because `book` and `editorial`
+     measure it and paginate into it. The source keeps the same one, so the two
+     halves line up. */
+  --docs-height: min(64vh, 620px);
+  display: grid;
+  gap: 1.1rem;
+  min-width: 0;
+}
+
+.docs__count {
+  margin: 0;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.78rem;
+  color: var(--pg-muted);
+}
+
+/* The nineteen, as their file names, which are also their addresses. */
+.docs__ids {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.2rem 0 0.9rem;
+}
+
+.docs__id {
+  font: inherit;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.78rem;
+  color: #263635;
+  background: #f4f8f3;
+  border: 1px solid var(--pg-border);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+
+.docs__id:hover {
+  border-color: var(--pg-accent);
+}
+
+.docs__id.is-active {
+  border-color: var(--pg-accent);
+  background: #dbe8e2;
+  font-weight: 600;
+}
+
+/* An edit is worth saying: the chip of a document a visitor has changed keeps a
+   dot, so the nineteen do not silently become nineteen other things. */
+.docs__id-edited {
+  margin-inline-start: 0.35rem;
+  color: var(--pg-accent);
+  font-weight: 700;
+}
+
+.docs__chosen {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.docs__chosen-line {
+  margin: 0;
+  line-height: 1.6;
+  max-width: 92ch;
+}
+
+.docs__chosen-title {
+  font-family: var(--calamus-serif-font);
+  font-size: 1.04rem;
+  font-weight: 600;
+  color: var(--pg-fg);
+}
+
+.docs .docs__note {
+  color: var(--pg-muted);
+}
+
+.docs__modes-label {
+  align-self: center;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pg-muted);
+  margin-inline-end: 0.15rem;
+}
+
+.docs .explorer__section-head {
+  flex-wrap: wrap;
+}
+
+.docs .explorer__try {
+  margin: 0;
+  max-width: 78ch;
+}
+
+.docs__address {
+  margin-inline-start: 0.3rem;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+  white-space: nowrap;
+}
+
+.docs__address code {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.78rem;
+}
+
+.docs__address a {
+  color: var(--pg-accent);
+}
+
+.docs__file {
+  color: var(--pg-muted);
+}
+
+/* The split. Below 960px it stacks, and the source comes first: the file is
+   what the reading is made of. */
+.docs__split {
+  display: grid;
+  gap: 1.1rem;
+  align-items: start;
+  min-width: 0;
+}
+
+@media (min-width: 960px) {
+  .docs__split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.docs__panel {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+}
+
+.docs__source-label {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--pg-muted);
+}
+
+/* One textarea, which is the honest control for a text file. `wrap: off` keeps
+   an island's indentation readable; the horizontal scroll is the textarea's own
+   and never the page's. */
+.docs__source {
+  width: 100%;
+  height: var(--docs-height);
+  min-height: 18rem;
+  resize: vertical;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.79rem;
+  line-height: 1.6;
+  tab-size: 2;
+  color: #e4e6e1;
+  background: #16181a;
+  border: 1px solid var(--pg-border);
+  border-radius: 9px;
+  padding: 0.8rem;
+  white-space: pre;
+}
+
+.docs__source:focus-visible {
+  outline: 2px solid var(--pg-accent);
+  outline-offset: 2px;
+}
+
+/* The reading. Drag the bottom edge and book and editorial repaginate. */
+.docs__stage {
+  height: var(--docs-height);
+  min-height: 18rem;
+  overflow: hidden;
+  resize: vertical;
+  border: 1px dashed var(--pg-border);
+  border-radius: 10px;
+}
+
+@media (max-width: 560px) {
+  .docs {
+    --docs-height: 26rem;
+  }
+
+  /* Stacked, the source is above the reading, so it gives up some of its height
+     rather than pushing the reading two screens down. */
+  .docs__source {
+    height: 19rem;
+    min-height: 0;
+  }
+}
+
+/* Diagnostics */
+
+.docs__diagnostics {
+  margin-top: 0.3rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--pg-border);
+}
+
+.docs__diagnostics-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pg-muted);
+}
+
+.docs__diagnostics-count {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.74rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.docs__diagnostics-empty {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--pg-muted);
+}
+
+.docs__diagnostics-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.docs__diagnostic {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--pg-border);
+  border-inline-start-width: 3px;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.docs__diagnostic--warning {
+  border-inline-start-color: #b48a2c;
+}
+
+.docs__diagnostic--error {
+  border-inline-start-color: #a3402f;
+}
+
+.docs__diagnostic-severity {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a5a10;
+}
+
+.docs__diagnostic--error .docs__diagnostic-severity {
+  color: #a3402f;
+}
+
+.docs__diagnostic-where {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.72rem;
+  color: var(--pg-muted);
+}
+
+.docs__diagnostic-message {
+  grid-column: 1 / -1;
+  color: var(--pg-fg);
+  overflow-wrap: anywhere;
+}
+
+/* The header's view switch */
+
+.explorer__views {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.7rem;
+  margin: 0.7rem 0 0.6rem;
+}
+
+.explorer__views-label {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pg-muted);
+}
+
+.explorer__views .control__buttons button {
+  font-size: 0.86rem;
+}
+
+/* ==========================================================================
+   The author's vocabulary, dressed by the host.
+
+   The library styles what it emits and deliberately stops at the mark: a mark
+   kind, a role and an `as:` are the author's words, they arrive as `data-*`,
+   and `src/styles.css` matches none of them. That is not an omission -- it is
+   the seam. This is the host side of it, and it is the difference between the
+   nineteen reading as prose and reading as a wall of grey text.
+
+   Everything below is scoped to the stage, so it dresses the reading and never
+   the page around it.
+   ========================================================================== */
+
+/* A withheld passage: a bar while it is closed, the words themselves when it is
+   open. The button is the bar, so the paragraph keeps its shape either way. */
+.docs__stage .docs-mark--cover .calamus__affordance {
+  padding: 0 0.2em;
+  border-radius: 2px;
+  background: var(--calamus-fg);
+  color: transparent;
+  text-decoration: none;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  user-select: none;
+}
+
+.docs__stage .docs-mark--cover .calamus__affordance[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--calamus-accent), transparent 84%);
+  color: var(--calamus-fg);
+  text-decoration: underline dotted;
+  text-underline-offset: 0.22em;
+  user-select: text;
+}
+
+/* A hand that kept a word, and one that struck it out. Both entries are called
+   only while their pass is on, which is what makes the two toggles legible. */
+.docs__stage .docs-mark--highlight {
+  background: color-mix(in srgb, var(--calamus-accent), transparent 78%);
+  color: inherit;
+  padding: 0 0.12em;
+  border-radius: 2px;
+  text-decoration: underline;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 0.2em;
+}
+
+.docs__stage .docs-mark--strike {
+  text-decoration: line-through;
+  text-decoration-thickness: from-font;
+  color: var(--calamus-muted);
+}
+
+/* A label belongs to the thing it names: small, lettered, and not prose. */
+.docs__stage .docs-mark--label {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.82em;
+  letter-spacing: 0.04em;
+  color: var(--calamus-muted);
+}
+
+.docs__stage .docs-mark--reference {
+  font-size: 0.78em;
+  color: var(--calamus-accent);
+}
+
+/* The badge a sheet or a line carries once something has happened to it. */
+.docs__stage .docs-mark--note {
+  margin-inline-start: 0.4em;
+  padding: 0.05em 0.5em;
+  border: 1px solid var(--calamus-border);
+  border-radius: 999px;
+  font-family: var(--calamus-mono-font);
+  font-size: 0.72em;
+  letter-spacing: 0.04em;
+  color: var(--calamus-muted);
+  white-space: nowrap;
+}
+
+/* A substitution somebody else made in your sentence. */
+.docs__stage .docs-mark--underline {
+  text-decoration: underline wavy;
+  text-decoration-color: var(--calamus-accent);
+  text-underline-offset: 0.2em;
+}
+
+.docs__stage .docs-mark--hedge {
+  color: var(--calamus-muted);
+}
+
+.docs__stage .docs-mark--rule {
+  box-shadow: inset 0.18em 0 0 var(--calamus-accent);
+  padding-inline-start: 0.5em;
+}
+
+/* An accessible note the author wrote beside a mark: said, never shown. */
+.docs-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* `block: columns`, and the arithmetic that falls in CSS.
+
+   A declared variable arrives as `--calamus-var-<name>` in the reader's root
+   scope, with the unit the author declared, and the host is the one that spends
+   it (decision 29). `column-lab` declares `cols` and `gutter` and names its
+   region `columns`; two properties here are the whole of it, and the count is a
+   ceiling rather than a promise because `13rem` is the narrowest column allowed.
+
+   The suffix match is the only hook a region's authored name has: the id is
+   prefixed per reader so that two readings cannot collide, and nothing else in
+   the DOM carries the name. */
+.docs__stage .calamus__region[id$="-columns"] {
+  columns: var(--calamus-var-cols, 1) 13rem;
+  column-gap: var(--calamus-var-gutter, 1.6rem);
+  column-rule: 1px solid transparent;
+  orphans: 2;
+  widows: 2;
+}
+
+.docs__stage .calamus__region[id$="-columns"] > :first-child {
+  margin-block-start: 0;
+}
+
+/* `as: apparatus`: the notes a jump goes down to, set apart from the line. */
+.docs__stage .calamus__each[data-as="apparatus"] .calamus__each-item {
+  padding-inline-start: 0.8rem;
+  border-inline-start: 2px solid var(--calamus-border);
+}
+
+/* Roles the authors named: a heading, a caption, a time. Three words, and the
+   library has no idea what any of them mean. */
+.docs__stage [data-role="heading"] {
+  font-family: var(--calamus-serif-font);
+  font-size: 1.04em;
+  font-weight: 600;
+  margin-block-end: 0.2em;
+}
+
+.docs__stage [data-role="caption"] {
+  font-size: 0.88em;
+  color: var(--calamus-muted);
+}
+
+.docs__stage [data-role="time"] {
+  font-family: var(--calamus-mono-font);
+  font-size: 0.82em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--calamus-muted);
+}
+
+/* `as: column` is the author's word for "print this group beside the next one",
+   and two witnesses to one night is what it is for. */
+@media (min-width: 620px) {
+  .docs__stage .calamus__each[data-as="column"] {
+    display: inline-block;
+    vertical-align: top;
+    inline-size: calc(50% - 0.8rem);
+    margin-inline-end: 1.4rem;
+  }
+
+  .docs__stage .calamus__each[data-as="column"]:last-of-type {
+    margin-inline-end: 0;
+  }
+}
+
+/* A log the reader is writing reads better as a list of lines than as prose. */
+.docs__stage .calamus__each-item {
+  margin-block-end: 0.55rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs__stage [data-mark="withheld"] .calamus__affordance {
+    transition: none;
+  }
+}
